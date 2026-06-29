@@ -149,10 +149,12 @@
         .map-star { fill: var(--accent); filter: drop-shadow(0 0 8px var(--accent)); }
         .map-point { fill: #e0e0e0; stroke: rgba(255,255,255,0.55); stroke-width: 0.8; cursor: pointer; }
         .map-point.planet { fill: url(#planetGradient); stroke: rgba(125, 211, 252, 0.65); stroke-width: 1.1; filter: drop-shadow(0 0 4px rgba(125, 211, 252, 0.28)); }
+        .map-point.moon { fill: rgba(147, 197, 253, 0.82); stroke: rgba(219,234,254,0.72); stroke-width: 0.45; filter: drop-shadow(0 0 2px rgba(147,197,253,0.42)); }
         .map-point.gateway { fill: rgba(74, 222, 128, 0.55); stroke: rgba(74, 222, 128, 0.85); stroke-width: 1.1; }
         .map-point.station { fill: #ffffff; stroke: rgba(224,224,224,0.55); stroke-width: 0.7; }
         .map-point.surface { fill: var(--accent); stroke: none; filter: drop-shadow(0 0 4px var(--accent)); }
         .map-surface-link { stroke: var(--accent); stroke-width: 0.7; opacity: 0.38; pointer-events: none; stroke-dasharray: 2 3; }
+        .map-moon-link { display: none; }
         .map-surface-ground { display: none; }
         .map-gateway-ring { fill: none; stroke: #4ade80; stroke-width: 1.2; opacity: 0.5; pointer-events: none; }
         .map-station-cross { stroke: #e0e0e0; pointer-events: none; }
@@ -232,6 +234,19 @@
         .settings-row span { color: #ddd; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         .settings-row small { display: block; margin-top: 3px; color: #777; font-size: 9px; font-weight: 400; text-transform: none; letter-spacing: 0; }
         .settings-row input[type=checkbox] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+
+        .location-filter-panel { background:#141414; border:1px solid #2a2a2a; padding:10px; margin:10px 0 12px; display:grid; gap:8px; }
+        .location-filter-title { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#aaa; font-size:9px; font-family:'Courier New', monospace; text-transform:uppercase; letter-spacing:.9px; }
+        .location-filter-row { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:7px; }
+        .location-choice { margin:0; padding:9px 10px; min-height:46px; background:#202020; color:#cfcfcf; border:1px solid #333; text-align:left; display:flex; flex-direction:column; gap:3px; justify-content:center; letter-spacing:.9px; }
+        .location-choice b { color:#f5f5f5; font-size:10px; line-height:1.15; }
+        .location-choice small { color:#777; font-size:8px; font-weight:600; text-transform:none; letter-spacing:0; line-height:1.2; }
+        .location-choice:hover { border-color:var(--accent); color:var(--accent); background:rgba(var(--accent-rgb),0.08); }
+        .location-choice.active { border-color:var(--accent); background:rgba(var(--accent-rgb),0.16); box-shadow:0 0 0 1px rgba(var(--accent-rgb),0.18), inset 3px 0 0 var(--accent); }
+        .location-choice.active b { color:var(--accent); }
+        .location-choice.warn.active { border-color:#f97316; background:rgba(249,115,22,0.13); box-shadow:0 0 0 1px rgba(249,115,22,0.18), inset 3px 0 0 #f97316; }
+        .location-choice.warn.active b { color:#fb923c; }
+        @media (max-width: 620px) { .location-filter-row { grid-template-columns:1fr; } }
 
         /* === Contract cards rework: added without removing original map/location/ship data === */
         .contract-tools { display:flex; gap:6px; flex-wrap:wrap; margin: 10px 0 12px; }
@@ -641,13 +656,6 @@
             </div>
         </div>
 
-        <h2>Contract Locations</h2>
-        <label class="settings-row" for="showAllLocationsToggle">
-            <span>Show all locations in contracts
-                <small>Off = hauling locations only in the contract/start dropdowns. On = every known station, L-point and extra marker.</small>
-            </span>
-            <input id="showAllLocationsToggle" type="checkbox" onchange="setShowAllContractLocations(this.checked)">
-        </label>
     </div>
     
     <div class="main-grid">
@@ -722,6 +730,34 @@
             <div class="control-group">
                 <label>Start:</label>
                 <select id="startLocation"></select>
+            </div>
+
+            <h2>Location Filters</h2>
+            <div class="location-filter-panel" aria-label="Contract location filters">
+                <div class="location-filter-title">
+                    <span>Dropdowns</span>
+                    <span id="locationFilterStatus">Hauling only • Onyx hidden</span>
+                </div>
+                <div class="location-filter-row">
+                    <button type="button" id="locFilterHauling" class="location-choice" onclick="setShowAllContractLocations(false)">
+                        <b>Hauling only</b>
+                        <small>Stations, gateways and L1-L5 stops</small>
+                    </button>
+                    <button type="button" id="locFilterAll" class="location-choice" onclick="setShowAllContractLocations(true)">
+                        <b>All locations</b>
+                        <small>Stations, L-points and extras</small>
+                    </button>
+                </div>
+                <div class="location-filter-row">
+                    <button type="button" id="onyxFilterHide" class="location-choice" onclick="setShowOnyxLocations(false)">
+                        <b>Hide Onyx</b>
+                        <small>Keep the lists tidy</small>
+                    </button>
+                    <button type="button" id="onyxFilterShow" class="location-choice warn" onclick="setShowOnyxLocations(true)">
+                        <b>Show Onyx</b>
+                        <small>Show S3/S4 facilities when needed</small>
+                    </button>
+                </div>
             </div>
 
             <h2>Contracts</h2>
@@ -910,7 +946,7 @@
             {name: "Hur-L5 High Course Station", sys: "Stanton", lat: 0.00, lon: -1, dist: 12.85},
             {name: "Lorville (Hurston)", sys: "Stanton", lat: 0.00, lon: 0.00, dist: 12.85, surfaceOf: "Hurston", surfaceType: "landing zone", surfacePos: {x: -420000, y: 540000, z: -180000, radius: 1000000, altitude: 390}},
             {name: "Microtech", sys: "Stanton", lat: 0.00, lon: 58.86, dist: 43.44},
-            {name: "Microtech Calliope", sys: "Stanton", lat: 0.00, lon: 58.92, dist: 43.39},
+            {name: "Microtech Calliope", sys: "Stanton", lat: 0.00, lon: 58.92, dist: 43.39, hauling: true, type: "moon", moonOf: "Microtech"},
             {name: "MIC-L1 Shallow Frontier Station", sys: "Stanton", lat: 0.00, lon: 60, dist: 39.09},
             {name: "MIC-L2 Long Forest Station", sys: "Stanton", lat: 0.01, lon: 60, dist: 47.79},
             {name: "MIC-L3 Endless Odyssey Station", sys: "Stanton", lat: 0.01, lon: -121.12, dist: 43.45},
@@ -942,6 +978,7 @@
         let tracking = {};
         let currentRoute = null;
         let showAllContractLocations = false;
+        let showOnyxLocations = false;
         let showAllMapLocations = false;
         let mapPerspectiveMode = true;
         let mapSearchMode = false;
@@ -989,7 +1026,7 @@
             "Ruin Station", "Starlight Service Station", "Stanton Gateway",
             "Area18 (ArcCorp)", "ArcCorp", "Baijini Point", "Crusader", "Everus Harbor",
             "Grim HEX", "Hurston", "Lorville (Hurston)", "Microtech", "New Babbage (Microtech)",
-            "Orison (Crusader)", "Pyro Gateway", "Nyx Gateway (Stanton)", "Levski"
+            "Orison (Crusader)", "Pyro Gateway", "Nyx Gateway (Stanton)", "Microtech Calliope", "Microtech Clio", "Microtech Euterpe", "Levski"
         ]);
 
         function isHaulingLocation(loc) {
@@ -1000,14 +1037,32 @@
             const routeNameSet = new Set(routePath);
             return locations.filter(loc => {
                 if (loc.sys !== system) return false;
+                if (isOnyxLocation(loc) && !showOnyxLocations && !routeNameSet.has(loc.name)) return false;
                 if (showAllMapLocations) return true;
                 return isHaulingLocation(loc) || routeNameSet.has(loc.name);
             });
         }
 
+        function setToggleButtonState(id, active) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('active', Boolean(active));
+            el.setAttribute('aria-pressed', Boolean(active) ? 'true' : 'false');
+        }
+
+        function syncLocationFilterControls() {
+            setToggleButtonState('locFilterHauling', !showAllContractLocations);
+            setToggleButtonState('locFilterAll', showAllContractLocations);
+            setToggleButtonState('onyxFilterHide', !showOnyxLocations);
+            setToggleButtonState('onyxFilterShow', showOnyxLocations);
+            const status = document.getElementById('locationFilterStatus');
+            if (status) {
+                status.textContent = `${showAllContractLocations ? 'All locations' : 'Hauling only'} • Onyx ${showOnyxLocations ? 'shown' : 'hidden'}`;
+            }
+        }
+
         function syncShowAllContractLocationToggle() {
-            const toggle = document.getElementById('showAllLocationsToggle');
-            if (toggle) toggle.checked = showAllContractLocations;
+            syncLocationFilterControls();
         }
 
         function syncShowAllMapLocationToggle() {
@@ -1018,9 +1073,18 @@
         function setShowAllContractLocations(value) {
             showAllContractLocations = Boolean(value);
             localStorage.setItem('scShowAllContractLocations', showAllContractLocations ? '1' : '0');
-            syncShowAllContractLocationToggle();
+            syncLocationFilterControls();
             updateLocationOptions();
             updateUI();
+        }
+
+        function setShowOnyxLocations(value) {
+            showOnyxLocations = Boolean(value);
+            localStorage.setItem('scShowOnyxLocations', showOnyxLocations ? '1' : '0');
+            syncLocationFilterControls();
+            updateLocationOptions();
+            updateUI();
+            drawSystemMap(currentRoute?.path || []);
         }
 
         function setShowAllMapLocations(value) {
@@ -1032,7 +1096,8 @@
 
         function loadContractLocationSetting() {
             showAllContractLocations = localStorage.getItem('scShowAllContractLocations') === '1';
-            syncShowAllContractLocationToggle();
+            showOnyxLocations = localStorage.getItem('scShowOnyxLocations') === '1';
+            syncLocationFilterControls();
         }
 
         function loadMapLocationSetting() {
@@ -1177,9 +1242,21 @@
             return Boolean(loc && loc.surfaceOf && loc.surfacePos);
         }
 
+        const microtechMoonNames = new Set(["Microtech Calliope", "Microtech Clio", "Microtech Euterpe"]);
+
+        function isMoonLocation(loc) {
+            return Boolean(loc && (loc.type === 'moon' || microtechMoonNames.has(loc.name)));
+        }
+
         function getParentBodyLocation(loc) {
-            if (!isSurfaceLocation(loc)) return null;
-            return locations.find(parent => parent.sys === loc.sys && parent.name === loc.surfaceOf) || null;
+            if (isSurfaceLocation(loc)) {
+                return locations.find(parent => parent.sys === loc.sys && parent.name === loc.surfaceOf) || null;
+            }
+            if (isMoonLocation(loc)) {
+                const parentName = loc.moonOf || 'Microtech';
+                return locations.find(parent => parent.sys === loc.sys && parent.name === parentName) || null;
+            }
+            return null;
         }
 
         function getSurfaceOffset(loc, surfaceRadius = 18) {
@@ -1199,6 +1276,21 @@
             return { x: dx, y: dy };
         }
 
+        function getMoonDisplayOffset(loc, radius = 7) {
+            // Stored coords stay exact. This only prevents overlapping markers at map scale.
+            const angleMap = {
+                "Microtech Calliope": -34,
+                "Microtech Clio": 22,
+                "Microtech Euterpe": 150
+            };
+            const angle = (angleMap[loc.name] ?? 0) * Math.PI / 180;
+            let dx = Math.cos(angle) * radius;
+            let dy = Math.sin(angle) * radius;
+            if (mapPerspectiveMode) dy *= 0.58;
+            return { x: dx, y: dy };
+        }
+
+
         function orbitalMapPoint(loc, cx, cy, scale) {
             const lonRad = loc.lon * Math.PI / 180;
             const x = cx + loc.dist * scale * Math.cos(lonRad);
@@ -1214,6 +1306,11 @@
                     const off = getSurfaceOffset(loc);
                     return { x: parentPt.x + off.x, y: parentPt.y + off.y };
                 }
+            }
+            if (isMoonLocation(loc)) {
+                const exactPt = orbitalMapPoint(loc, cx, cy, scale);
+                const off = getMoonDisplayOffset(loc);
+                return { x: exactPt.x + off.x, y: exactPt.y + off.y, exactX: exactPt.x, exactY: exactPt.y };
             }
             return orbitalMapPoint(loc, cx, cy, scale);
         }
@@ -1329,6 +1426,7 @@
         function classifyLocation(nameOrLoc) {
             const loc = typeof nameOrLoc === 'object' ? nameOrLoc : null;
             if (isSurfaceLocation(loc)) return 'surface';
+            if (isMoonLocation(loc)) return 'moon';
             const name = loc ? loc.name : nameOrLoc;
             const n = String(name || '').toLowerCase();
             if (n.includes('gateway')) return 'gateway';
@@ -1341,6 +1439,9 @@
             if (type === 'surface') {
                 const altitude = loc.surfacePos?.altitude !== undefined ? ` • alt ${Number(loc.surfacePos.altitude).toFixed(0)}m` : '';
                 return `${loc.sys} • surface spot on ${loc.surfaceOf}${altitude}`;
+            }
+            if (type === 'moon') {
+                return `${loc.sys} • microTech moon • lat ${loc.lat}° • lon ${loc.lon}° • ${loc.dist} GM`;
             }
             return `${loc.sys} • ${type} • lat ${loc.lat}° • lon ${loc.lon}° • ${loc.dist} GM`;
         }
@@ -1649,7 +1750,7 @@
                 <circle cx="${cx}" cy="${cy}" r="28" fill="url(#starGlow)"/>
                 <circle class="map-star" cx="${cx}" cy="${cy}" r="7" fill="${sysColor}"/>
                 <text x="${cx+12}" y="${cy+4}" fill="#aaa" font-family="Courier New" font-size="9" font-weight="700">STAR</text>
-                <text x="24" y="62" fill="#aaa" font-family="Courier New" font-size="10" font-weight="600">${showAllMapLocations ? 'SHOWING ALL LOCATIONS' : 'HAULING LOCATIONS ONLY'} • LEANED-BACK VIEW • ${mapSearchMode ? 'GLOBAL SCAN' : 'MAP VIEW'} • ${locs.length}/${allSystemLocs.length}</text>
+                <text x="24" y="62" fill="#aaa" font-family="Courier New" font-size="10" font-weight="600">${showAllMapLocations ? 'SHOWING ALL LOCATIONS' : 'HAULING LOCATIONS ONLY'} • ONYX ${showOnyxLocations ? 'SHOWN' : 'HIDDEN'} • LEANED-BACK VIEW • ${mapSearchMode ? 'GLOBAL SCAN' : 'MAP VIEW'} • ${locs.length}/${allSystemLocs.length}</text>
             `;
 
             if (locs.length === 0) {
@@ -1686,14 +1787,14 @@
                 const isRoute = routeNameSet.has(loc.name);
                 const isSearchResult = searchResultNameSet.has(loc.name);
                 const isSearchSelected = mapSearchSelectedName === loc.name;
-                const r = isSearchSelected ? 5.5 : cls === 'planet' ? 5 : cls === 'gateway' ? 4.5 : cls === 'surface' ? 2.8 : major ? 2.4 : isSearchResult ? 2.6 : 1.4;
+                const r = isSearchSelected ? 5.5 : cls === 'planet' ? 5 : cls === 'gateway' ? 4.5 : cls === 'moon' ? 1.75 : cls === 'surface' ? 2.8 : major ? 2.4 : isSearchResult ? 2.6 : 1.4;
                 return { loc, idx, pt, cls, major, isRoute, isSearchResult, isSearchSelected, r, label: shortMapLabel(loc.name) };
             });
 
             [...plottedLocations]
                 .sort((a, b) => Number(b.isSearchSelected || b.major || b.isRoute || b.isSearchResult) - Number(a.isSearchSelected || a.major || a.isRoute || a.isSearchResult))
                 .forEach(item => {
-                    const fontSize = item.isSearchSelected ? 10 : item.isRoute || item.isSearchResult ? 8 : item.major ? 8.5 : 6.5;
+                    const fontSize = item.isSearchSelected ? 10 : item.isRoute || item.isSearchResult ? 8 : item.cls === 'moon' ? 6 : item.major ? 8.5 : 6.5;
                     item.labelPlacement = placeSmartMapLabel(
                         item.loc,
                         item.pt,
@@ -1707,9 +1808,18 @@
                     );
                 });
 
-            plottedLocations.forEach(({ loc, pt, cls, major, isRoute, isSearchResult, isSearchSelected, r, labelPlacement }) => {
+            [...plottedLocations]
+                .sort((a, b) => {
+                    const layer = { planet: 1, station: 2, gateway: 3, surface: 4, moon: 5 };
+                    const aLayer = layer[a.cls] || 2;
+                    const bLayer = layer[b.cls] || 2;
+                    const aBoost = Number(a.isRoute || a.isSearchResult || a.isSearchSelected) * 10;
+                    const bBoost = Number(b.isRoute || b.isSearchResult || b.isSearchSelected) * 10;
+                    return (aLayer + aBoost) - (bLayer + bBoost);
+                })
+                .forEach(({ loc, pt, cls, major, isRoute, isSearchResult, isSearchSelected, r, labelPlacement }) => {
                 const labelClass = `${major ? 'major' : ''} ${isRoute ? 'route-label' : ''} ${isSearchResult ? 'search-label' : ''} ${isSearchSelected ? 'search-selected-label' : ''}`;
-                const fontSize = isSearchSelected ? 10 : isRoute || isSearchResult ? 8 : major ? 8.5 : 6.5;
+                const fontSize = isSearchSelected ? 10 : isRoute || isSearchResult ? 8 : cls === 'moon' ? 6 : major ? 8.5 : 6.5;
                 const pointClass = `${cls} ${isSearchResult ? 'search-result' : ''} ${isSearchSelected ? 'search-selected' : ''}`;
                 const leaderEndX = labelPlacement.anchor === 'end' ? labelPlacement.x + 4 : labelPlacement.anchor === 'start' ? labelPlacement.x - 4 : labelPlacement.x;
                 const leaderEndY = labelPlacement.y - fontSize * 0.35;
@@ -1720,8 +1830,9 @@
                    <g class="map-object ${cls === 'gateway' ? 'gateway-link' : ''}" data-name="${escapeSvg(loc.name)}" data-lon="${loc.lon}" data-dist="${loc.dist}" data-lat="${loc.lat}" data-desc="${escapeSvg(describeLocationForUi(loc))}" ondblclick="handleMapDoubleClick(this.dataset.name); event.preventDefault(); event.stopPropagation();">
                         <title>${escapeSvg(loc.name)} | ${escapeSvg(describeLocationForUi(loc))}</title>
                         ${cls === 'surface' && getParentBodyLocation(loc) ? (() => { const pp = mapPoint(getParentBodyLocation(loc), cx, cy, scale); return `<line class="map-surface-link" x1="${pp.x.toFixed(2)}" y1="${pp.y.toFixed(2)}" x2="${pt.x.toFixed(2)}" y2="${pt.y.toFixed(2)}" style="stroke: ${sysColor}"></line>`; })() : ''}
+                        ${cls === 'moon' && pt.exactX !== undefined ? `<line class="map-moon-link" x1="${pt.exactX.toFixed(2)}" y1="${pt.exactY.toFixed(2)}" x2="${pt.x.toFixed(2)}" y2="${pt.y.toFixed(2)}"></line>` : ''}
                         ${isSearchSelected ? `<circle class="map-search-pulse" cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${(r + 5).toFixed(2)}" style="stroke: ${sysColor}"></circle>` : ''}
-                        <circle class="map-point ${pointClass}" cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${r}" ${isRoute && !isSearchSelected ? `style="fill:${sysColor};stroke:${sysColor};filter:drop-shadow(0 0 6px ${sysColor});"` : ''}></circle>
+                        <circle class="map-point ${pointClass}" cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${r}" ${isRoute && !isSearchSelected ? (cls === "moon" ? `style="fill:${sysColor};stroke:#fff;stroke-width:0.65;filter:drop-shadow(0 0 4px ${sysColor});"` : `style="fill:${sysColor};stroke:${sysColor};filter:drop-shadow(0 0 6px ${sysColor});"`) : ''}></circle>
                         ${cls === 'station' ? `<g class="map-station-cross" opacity="0.4" stroke-width="1"><line x1="${(pt.x - r - 0.5).toFixed(2)}" y1="${pt.y.toFixed(2)}" x2="${(pt.x + r + 0.5).toFixed(2)}" y2="${pt.y.toFixed(2)}"/><line x1="${pt.x.toFixed(2)}" y1="${(pt.y - r - 0.5).toFixed(2)}" x2="${pt.x.toFixed(2)}" y2="${(pt.y + r + 0.5).toFixed(2)}"/></g>` : ''}
                         <line class="map-label-leader ${labelClass}" x1="${pt.x.toFixed(2)}" y1="${pt.y.toFixed(2)}" x2="${leaderEndX.toFixed(2)}" y2="${leaderEndY.toFixed(2)}" style="stroke: ${leaderStroke}"/>
                         <text class="map-label ${labelClass}" x="${labelPlacement.x.toFixed(2)}" y="${labelPlacement.y.toFixed(2)}" text-anchor="${labelPlacement.anchor}" style="fill: ${labelFill}">${renderSvgTextLines(labelPlacement.lines, labelPlacement.x, labelPlacement.y, fontSize)}</text>
@@ -2117,6 +2228,7 @@
             const system = getDOM('systemSelect')?.value;
             return locations.filter(loc => {
                 if (system !== 'All' && loc.sys !== system) return false;
+                if (isOnyxLocation(loc) && !showOnyxLocations) return false;
                 return showAllContractLocations || isHaulingLocation(loc);
             });
         }
@@ -3244,18 +3356,34 @@
             {name: "HDMS-Lathan", sys: "Stanton", lat: 0.00, lon: 0.00, dist: 12.85, hauling: true},
             {name: "Shubin Mining Facility SMO-13", sys: "Stanton", lat: 0.00, lon: 58.92, dist: 43.39, hauling: true}
         ];
-        for (let i = 1; i <= 10; i++) {
-            builtInExtraLocations.push({
-                name: `Onyx Facility S4A${i}`,
-                sys: 'Stanton',
-                lat: 0.00,
-                lon: 58.92,
-                dist: 43.39,
-                hauling: true,
-                parent: 'Calliope',
-                type: 'onyx'
-            });
-        }
+        const onyxS4Groups = [
+            // S4A = Calliope. These already existed, now kept in the same generated style.
+            {prefix: 'S4A', parent: 'Calliope', lat: 0.00, lon: 58.92, dist: 43.39},
+            // S4B = Clio. Coordinates supplied by Johnny.
+            {prefix: 'S4B', parent: 'Clio', lat: 0.00, lon: 58.78, dist: 43.36},
+            // S4C = Euterpe. Coordinates supplied by Johnny.
+            {prefix: 'S4C', parent: 'Euterpe', lat: 0.00, lon: 58.76, dist: 43.36}
+        ];
+
+        builtInExtraLocations.push(
+            {name: "Microtech Clio", sys: "Stanton", lat: 0.00, lon: 58.78, dist: 43.36, hauling: true, type: "moon", moonOf: "Microtech"},
+            {name: "Microtech Euterpe", sys: "Stanton", lat: 0.00, lon: 58.76, dist: 43.36, hauling: true, type: "moon", moonOf: "Microtech"}
+        );
+
+        onyxS4Groups.forEach(group => {
+            for (let i = 1; i <= 10; i++) {
+                builtInExtraLocations.push({
+                    name: `Onyx Facility ${group.prefix}${i}`,
+                    sys: 'Stanton',
+                    lat: group.lat,
+                    lon: group.lon,
+                    dist: group.dist,
+                    hauling: true,
+                    parent: group.parent,
+                    type: 'onyx'
+                });
+            }
+        });
 
         const locationAliasEntries = [
             ["Endgame (Terminus L3)", "Endgame"],
@@ -3270,7 +3398,14 @@
             ["Port Tressler above microTech", "Port Tressler"],
             ["NB Int. Spaceport on microTech", "NB Int. Spaceport"],
             ["Sakura Sun Goldenrod Wreckcenter on microTech", "Sakura Sun Goldenrod Wreckcenter"],
-            ["Rayari lab on Cellin", "Rayari lab on Cellin"]
+            ["Rayari lab on Cellin", "Rayari lab on Cellin"],
+            ["Clio", "Microtech Clio"],
+            ["Clio above microTech", "Microtech Clio"],
+            ["Microtech Clio", "Microtech Clio"],
+            ["Euterpe", "Microtech Euterpe"],
+            ["Euterpe above microTech", "Microtech Euterpe"],
+            ["Microtech Euterpe", "Microtech Euterpe"],
+            ["Calliope", "Microtech Calliope"]
         ];
 
         function upsertLocation(loc) {
@@ -3344,8 +3479,22 @@
             return found ? found.name : normaliseLocationText(raw);
         }
 
+        function isOnyxLocation(loc) {
+            const name = String(loc?.name || '').toLowerCase();
+            return Boolean(loc?.type === 'onyx' || name.includes('onyx facility') || name.startsWith('onyx '));
+        }
+
+        function isLagrangeLocation(loc) {
+            const name = String(loc?.name || '');
+            // Hauling contracts can go to L1-L5 locations, e.g. MIC-L1, Arc-L3, PYR1 L5, Pyro V L4.
+            return /(?:^|[\s\-\(])L[1-5](?:$|[\s\-\)])/i.test(name);
+        }
+
         function isHaulingLocation(loc) {
-            return Boolean(loc?.hauling) || haulingLocationNames.has(loc?.name) || String(loc?.name || '').toLowerCase().includes('gateway');
+            return Boolean(loc?.hauling)
+                || haulingLocationNames.has(loc?.name)
+                || isLagrangeLocation(loc)
+                || String(loc?.name || '').toLowerCase().includes('gateway');
         }
 
         function uid(prefix) {
