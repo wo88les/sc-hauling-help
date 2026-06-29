@@ -230,6 +230,10 @@
         .contract-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:10px; background:linear-gradient(90deg, rgba(249,115,22,0.12), rgba(38,38,38,0)); border-bottom:1px solid #333; }
         .contract-title { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .contract-title input { max-width:220px; flex:0 1 220px; }
+        .contract-value { display:flex; align-items:center; gap:6px; flex:0 1 190px; }
+        .contract-value label { min-width:auto; white-space:nowrap; }
+        .contract-value input { max-width:120px; flex:1 1 110px; }
+        input.readonly-total { cursor:default; color:var(--ok); border-color:rgba(74,222,128,0.35); background:#171717; font-weight:700; }
         .contract-summary { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
         .contract-pill { display:inline-flex; align-items:center; gap:4px; background:#161616; border:1px solid #333; color:#ddd; padding:4px 7px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; }
         .contract-pill.good { color:var(--ok); border-color:rgba(74,222,128,0.45); background:rgba(74,222,128,0.08); }
@@ -239,11 +243,11 @@
         .contract-body { padding:10px; display:grid; gap:10px; }
         .contract-body.collapsed { display:none; }
         .delivery-line { background:#171717; border:1px solid #303030; padding:10px; display:grid; gap:9px; }
-        .line-top { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(120px,0.75fr) 72px auto; gap:7px; align-items:end; }
+        .line-top { display:grid; grid-template-columns:minmax(0,1fr) 110px auto; gap:7px; align-items:end; }
         .section-title { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px; }
         .section-title b { color:#fff; font-size:9px; text-transform:uppercase; letter-spacing:1.2px; }
         .pickup-list { display:grid; gap:7px; }
-        .pickup-row { display:grid; grid-template-columns:minmax(0,1fr) 76px auto; gap:7px; align-items:end; background:#111; border:1px solid #2b2b2b; padding:8px; }
+        .pickup-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(110px,0.75fr) 76px auto; gap:7px; align-items:end; background:#111; border:1px solid #2b2b2b; padding:8px; }
         .mini-note { color:#888; font-size:9px; line-height:1.35; margin-top:3px; }
         .custom-location-panel { display:none; background:#141414; border:1px solid #333; padding:10px; margin:8px 0 10px; }
         .custom-location-panel.open { display:block; }
@@ -254,7 +258,327 @@
             .contract-head, .line-top, .pickup-row, .custom-location-grid { grid-template-columns:1fr; }
             .contract-actions { justify-content:flex-start; }
             .contract-title input { max-width:none; flex:1 1 100%; }
+            .contract-value { width:100%; flex:1 1 100%; }
+            .contract-value input { max-width:none; }
         }
+
+
+        /* === Compact tabbed contract UI === */
+
+        /* === Contract-level tabs: only one contract editor shown at a time === */
+        .contract-list { gap:0; }
+        .contract-main-tabs { display:flex; gap:6px; overflow-x:auto; padding:8px; background:#141414; border:1px solid #303030; border-bottom:none; scrollbar-width:thin; }
+        .contract-main-tab { flex:0 0 auto; min-width:148px; max-width:220px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:3px; padding:8px 10px; margin:0; background:#222; color:#aaa; border:1px solid #333; font-size:9px; text-align:left; line-height:1.2; }
+        .contract-main-tab:hover { color:#fff; border-color:var(--accent); }
+        .contract-main-tab.active { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+        .contract-main-tab b { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; }
+        .contract-main-tab small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.82; font-size:8px; text-transform:none; letter-spacing:0; font-weight:700; }
+        .contract-main-tab-add { min-width:110px; align-items:center; text-align:center; }
+        .active-contract-wrap { border:1px solid #303030; background:#181818; }
+        .active-contract-wrap .contract-card { border:0; margin:0; }
+        .active-contract-wrap .contract-card.active { box-shadow:none; }
+        .contract-position-note { color:#777; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; }
+        .contract-body { padding: 0; display: block; }
+        .contract-body.collapsed { display:none; }
+        .contract-tabs { display:flex; gap:5px; padding:8px 10px 0; overflow-x:auto; background:#181818; border-bottom:1px solid #303030; scrollbar-width:thin; }
+        .contract-tab { flex:0 0 auto; display:flex; align-items:center; gap:6px; min-width:88px; padding:7px 9px; margin:0; background:#242424; color:#aaa; border:1px solid #333; border-bottom:none; font-size:8px; text-align:left; }
+        .contract-tab:hover { color:#fff; border-color:var(--accent); }
+        .contract-tab.active { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+        .contract-tab small { display:block; margin-top:2px; font-size:7px; font-weight:700; opacity:.78; text-transform:none; letter-spacing:0; }
+        .contract-tab-add { min-width:76px; justify-content:center; }
+        .contract-editor { padding:10px; display:grid; gap:8px; }
+        .delivery-line { padding:0; display:block; background:#151515; border:1px solid #303030; }
+        .line-top { grid-template-columns:minmax(0,1.35fr) 100px auto; padding:9px; background:#171717; border-bottom:1px solid #2c2c2c; }
+        .line-top label, .pickup-row label { min-width:0; display:block; margin-bottom:4px; }
+        .line-top button { white-space:nowrap; align-self:stretch; }
+        .collect-titlebar { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 9px; background:#111; border-bottom:1px solid #2c2c2c; }
+        .collect-titlebar b { color:#fff; font-size:9px; text-transform:uppercase; letter-spacing:1.2px; }
+        .collect-titlebar small { display:block; margin-top:2px; color:#777; font-size:8px; line-height:1.25; }
+        .collect-titlebar button { margin:0; padding:6px 8px; font-size:8px; white-space:nowrap; }
+        .pickup-list { display:block; border:0; }
+        .pickup-header, .pickup-row { display:grid; grid-template-columns:minmax(190px,1.35fr) minmax(130px,.85fr) 82px 72px; gap:6px; align-items:center; }
+        .pickup-header { padding:6px 9px; background:#181818; color:#777; font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; border-bottom:1px solid #2a2a2a; }
+        .pickup-row { padding:7px 9px; background:#101010; border:0; border-bottom:1px solid #242424; }
+        .pickup-row:last-child { border-bottom:0; }
+        .pickup-row label { display:none; }
+        .pickup-row button { margin:0; padding:7px 8px; font-size:8px; align-self:end; }
+        .mini-note { display:none; }
+        @media (max-width: 760px) {
+            .contract-tabs { padding:8px; border-bottom:1px solid #303030; }
+            .contract-tab { min-width:76px; padding:8px; }
+            .contract-editor { padding:8px; }
+            .line-top, .pickup-row { grid-template-columns:1fr; }
+            .line-top button, .pickup-row button { align-self:auto; width:100%; }
+            .pickup-header { display:none; }
+            .pickup-row { padding:8px; gap:7px; }
+            .pickup-row label { display:block; }
+            .collect-titlebar { align-items:flex-start; flex-direction:column; }
+            .collect-titlebar button { width:100%; }
+        }
+
+
+        /* === Fit fixes: stop action buttons crowding/overlapping the active contract text === */
+        .active-contract-wrap .contract-head {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        .active-contract-wrap .contract-actions {
+            justify-content: flex-start;
+            padding-top: 8px;
+            border-top: 1px solid #303030;
+        }
+        .active-contract-wrap .contract-actions button {
+            min-width: 74px;
+            white-space: nowrap;
+        }
+        .active-contract-wrap .contract-title {
+            align-items: flex-end;
+        }
+        .active-contract-wrap .contract-title > input {
+            min-width: 160px;
+            max-width: 260px;
+        }
+        .active-contract-wrap .contract-value {
+            flex: 0 1 170px;
+        }
+        .active-contract-wrap .contract-value input {
+            min-width: 92px;
+            max-width: 120px;
+        }
+        .line-top > div,
+        .pickup-row > div {
+            min-width: 0;
+        }
+        .line-top {
+            grid-template-columns: minmax(220px, 1fr) minmax(90px, 110px) minmax(92px, auto);
+        }
+        .line-top button {
+            min-width: 92px;
+            padding-left: 8px;
+            padding-right: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pickup-header,
+        .pickup-row {
+            grid-template-columns: minmax(170px, 1.35fr) minmax(115px, .85fr) 78px 84px;
+        }
+        .pickup-row button {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (max-width: 760px) {
+            .active-contract-wrap .contract-title > input,
+            .active-contract-wrap .contract-value,
+            .active-contract-wrap .contract-value input {
+                min-width: 0;
+                max-width: none;
+                width: 100%;
+            }
+            .line-top,
+            .pickup-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
+        /* === UI polish: no horizontal contract-tab scrollbar + consistent compact actions === */
+        .contract-main-tabs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+            gap: 6px;
+            overflow-x: visible;
+            padding: 8px;
+            align-items: stretch;
+        }
+        .contract-main-tab,
+        .contract-main-tab-add {
+            min-width: 0;
+            max-width: none;
+            width: 100%;
+            min-height: 44px;
+        }
+        .contract-main-tab-add {
+            justify-content: center;
+            align-items: center;
+        }
+        .contract-tabs {
+            flex-wrap: wrap;
+            overflow-x: visible;
+            padding-bottom: 8px;
+        }
+        .contract-tab,
+        .contract-tab-add {
+            min-width: 96px;
+        }
+        .active-contract-wrap input,
+        .active-contract-wrap select {
+            width: 100%;
+            min-width: 0;
+            min-height: 32px;
+        }
+        .active-contract-wrap .contract-title {
+            display: grid;
+            grid-template-columns: auto minmax(180px, 1fr) minmax(145px, 190px);
+            gap: 8px;
+            align-items: end;
+        }
+        .active-contract-wrap .contract-title > input {
+            min-width: 0;
+            max-width: none;
+        }
+        .active-contract-wrap .contract-value {
+            width: 100%;
+            min-width: 0;
+            flex: none;
+        }
+        .active-contract-wrap .contract-value input {
+            max-width: none;
+        }
+        .line-top {
+            grid-template-columns: minmax(230px, 1fr) minmax(105px, 130px) 76px;
+            gap: 8px;
+            align-items: end;
+        }
+        button.danger-action {
+            background: #242424;
+            color: #ffb4b4;
+            border-color: #4a2a2a;
+        }
+        button.danger-action:hover:not(:disabled) {
+            background: #3a1f1f;
+            color: #fff;
+            border-color: #ff6b6b;
+        }
+        button.danger-action:disabled {
+            opacity: .38;
+            color: #777;
+            border-color: #333;
+            cursor: not-allowed;
+        }
+        button.line-delete-btn {
+            min-width: 0;
+            width: 76px;
+            height: 32px;
+            padding: 0 8px;
+            align-self: end;
+        }
+        .pickup-header,
+        .pickup-row {
+            grid-template-columns: minmax(190px, 1.35fr) minmax(140px, .9fr) 86px 42px;
+            gap: 8px;
+        }
+        .pickup-header span:last-child {
+            text-align: center;
+        }
+        button.pickup-remove-btn {
+            width: 36px;
+            height: 32px;
+            min-width: 36px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            justify-self: center;
+            align-self: end;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .pickup-row > div:nth-child(3) input {
+            text-align: right;
+        }
+        .collect-titlebar button,
+        .contract-actions button,
+        .contract-tab,
+        .contract-main-tab {
+            border-radius: 0;
+        }
+        @media (max-width: 900px) {
+            .active-contract-wrap .contract-title {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+            .contract-position-note {
+                margin-bottom: -2px;
+            }
+        }
+        @media (max-width: 760px) {
+            .contract-main-tabs {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            .contract-tab,
+            .contract-tab-add {
+                min-width: 82px;
+            }
+            .line-top,
+            .pickup-row {
+                grid-template-columns: 1fr;
+            }
+            button.line-delete-btn,
+            button.pickup-remove-btn {
+                width: 100%;
+                min-width: 0;
+                height: 32px;
+                justify-self: stretch;
+            }
+        }
+
+
+
+        /* === Delete clarity: contract tabs have a close button, line delete only appears when useful === */
+        .contract-main-tab-slot {
+            position: relative;
+            min-width: 0;
+            min-height: 44px;
+        }
+        .contract-main-tab-slot .contract-main-tab {
+            height: 100%;
+            padding-right: 30px;
+        }
+        .contract-main-tab-close {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            padding: 0;
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            line-height: 1;
+            z-index: 2;
+            background: rgba(0,0,0,.18);
+        }
+        .contract-main-tab-slot.active .contract-main-tab-close {
+            color: #2b0808;
+            border-color: rgba(0,0,0,.25);
+            background: rgba(255,255,255,.18);
+        }
+        .contract-main-tab-close:hover {
+            background: #3a1f1f;
+            color: #fff !important;
+            border-color: #ff6b6b !important;
+        }
+        .contract-delete-btn {
+            min-width: 118px !important;
+        }
+        .line-top.no-line-delete {
+            grid-template-columns: minmax(230px, 1fr) minmax(105px, 130px);
+        }
+        .line-delete-btn {
+            width: auto !important;
+            min-width: 92px !important;
+        }
+        @media (max-width: 760px) {
+            .line-top.no-line-delete {
+                grid-template-columns: 1fr;
+            }
+        }
+
 
     </style>
 </head>
@@ -386,7 +710,7 @@
 
             <h2>Contracts</h2>
             <div class="contract-help">
-                Add a contract, then copy the mission screen order: drop-off, cargo/SCU, then one or more pickup locations. No mode buttons needed — the app detects the shape automatically.
+                Add a contract, then copy the mission screen order: drop-off first, then one or more collect rows with item and SCU. No mode buttons needed — the app detects the shape automatically.
             </div>
 
             <div class="contract-tools">
@@ -609,6 +933,7 @@
         let mapSearchSelectedName = null;
         let mapSearchKeyboardIndex = 0;
         let routeInputsCollapsed = false;
+        let activeContractIndex = 0;
 
         // **OPTIMIZATION 2: Cache common DOM elements**
         const domCache = {
@@ -1780,6 +2105,14 @@
             });
         }
 
+        function updateDeliveryLineTotal(contractIndex, lineIndex) {
+            const line = contracts[contractIndex]?.lines[lineIndex];
+            const input = document.querySelector(`input[data-role="drop-total"][data-contract="${contractIndex}"][data-line="${lineIndex}"]`);
+            if (!line || !input) return;
+            const total = linePickupScuTotal(line);
+            input.value = total > 0 ? fmtScu(total) : '';
+        }
+
         function updateLocationOptions() {
             const start = getDOM('startLocation');
             if (!start) return;
@@ -2208,6 +2541,7 @@
                 steps,
                 totalDist: totalDist.toFixed(1),
                 totalCargo,
+                totalPayout: getTotalPayout(),
                 path: [startLoc?.name, ...steps.map(step => locations.find(l => step.text.includes(l.name))?.name).filter(Boolean)].filter(Boolean)
             });
             collapseRouteInputs();
@@ -2488,7 +2822,8 @@
             });
 
             html += `<div class="route-summary">${'═'.repeat(50)}</div>`;
-            html += `<div class="route-summary">TOTAL DISTANCE: ${route.totalDist}GM | START/MAX CARGO: ${route.totalCargo}SCU</div>`;
+            const payoutText = safeNumber(route.totalPayout) > 0 ? ` | TOTAL PAYOUT: ${fmtAuec(route.totalPayout)} aUEC` : '';
+            html += `<div class="route-summary">TOTAL DISTANCE: ${route.totalDist}GM | START/MAX CARGO: ${route.totalCargo}SCU${payoutText}</div>`;
 
             container.innerHTML = html;
             updateTrackingDisplay();
@@ -2661,7 +2996,7 @@
 
         /* === Contract Cards Rework Layer === */
         const SC_CUSTOM_LOCATIONS_KEY = 'scCustomHaulingLocations';
-        const SC_CARD_STATE_VERSION = 2;
+        const SC_CARD_STATE_VERSION = 3;
 
         const builtInExtraLocations = [
             {name: "Pyro II", sys: "Pyro", lat: 0.00, lon: -55.23, dist: 10.62, hauling: true},
@@ -2797,6 +3132,28 @@
             return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
         }
 
+        function fmtAuec(value) {
+            const n = Math.max(0, Math.round(safeNumber(value)));
+            return n.toLocaleString('en-GB');
+        }
+
+        function linePickupScuTotal(line) {
+            return (line?.pickups || []).reduce((sum, pickup) => sum + safeNumber(pickup.scu), 0);
+        }
+
+        function lineTotalScu(line) {
+            const pickupTotal = linePickupScuTotal(line);
+            return pickupTotal > 0 ? pickupTotal : safeNumber(line?.scu);
+        }
+
+        function getContractPayout(contract) {
+            return Math.max(0, Math.round(safeNumber(contract?.payout)));
+        }
+
+        function getTotalPayout() {
+            return contracts.reduce((sum, contract) => sum + getContractPayout(contract), 0);
+        }
+
         function selectOptionsHtml(value = '') {
             const selectedValue = canonicalLocationName(value);
             const found = selectedValue ? findLocationByName(selectedValue) : null;
@@ -2817,7 +3174,9 @@
             return {
                 id: uid('contract'),
                 name: `Contract ${contracts.length + 1}`,
+                payout: '',
                 collapsed: false,
+                activeLine: 0,
                 lines: [makeBlankLine()]
             };
         }
@@ -2827,19 +3186,74 @@
                 id: uid('line'),
                 dropoff: '',
                 cargo: '',
+                // Kept for old saved browser data only. New SCU totals come from pickup rows.
                 scu: '',
                 pickups: [makeBlankPickup()]
             };
         }
 
         function makeBlankPickup(location = '') {
-            return { id: uid('pickup'), location, scu: '' };
+            return { id: uid('pickup'), location, cargo: '', scu: '' };
+        }
+
+        function normaliseContractData() {
+            contracts.forEach((contract, ci) => {
+                if (!contract.id) contract.id = uid('contract');
+                if (contract.payout === undefined) contract.payout = '';
+                if (!contract.name) contract.name = `Contract ${ci + 1}`;
+                if (!Array.isArray(contract.lines) || !contract.lines.length) contract.lines = [makeBlankLine()];
+                contract.activeLine = Math.max(0, Math.min(Math.floor(safeNumber(contract.activeLine)), contract.lines.length - 1));
+
+                contract.lines.forEach(line => {
+                    if (!line.id) line.id = uid('line');
+                    if (!Array.isArray(line.pickups) || !line.pickups.length) line.pickups = [makeBlankPickup()];
+                    line.pickups.forEach(pickup => {
+                        if (!pickup.id) pickup.id = uid('pickup');
+                        if (pickup.cargo === undefined) pickup.cargo = '';
+                    });
+
+                    const legacyCargo = String(line.cargo || '').trim();
+                    if (legacyCargo) {
+                        line.pickups.forEach(pickup => {
+                            if (!String(pickup.cargo || '').trim()) pickup.cargo = legacyCargo;
+                        });
+                    }
+
+                    const legacyTotal = safeNumber(line.scu);
+                    const pickupTotal = linePickupScuTotal(line);
+                    if (legacyTotal > 0 && pickupTotal <= 0) {
+                        const split = legacyTotal / line.pickups.length;
+                        line.pickups.forEach(pickup => { pickup.scu = fmtScu(split); });
+                    }
+                    line.scu = '';
+                    line.cargo = '';
+                });
+            });
+            if (typeof clampActiveContractIndex === 'function') clampActiveContractIndex();
+        }
+
+        function clampActiveContractIndex() {
+            if (!contracts.length) {
+                activeContractIndex = 0;
+                return 0;
+            }
+            activeContractIndex = Math.max(0, Math.min(Math.floor(safeNumber(activeContractIndex)), contracts.length - 1));
+            return activeContractIndex;
+        }
+
+        function setActiveContract(contractIndex) {
+            activeContractIndex = Math.max(0, Math.min(Math.floor(safeNumber(contractIndex)), contracts.length - 1));
+            renderContracts({ focusActiveTab: true });
+            saveState();
         }
 
         function addContract(contract = null) {
             contracts.push(contract || makeBlankContract());
-            renderContracts();
+            activeContractIndex = contracts.length - 1;
+            normaliseContractData();
+            renderContracts({ focusActiveTab: true });
             updateStatus();
+            saveState();
         }
 
         function duplicateContract(contractIndex) {
@@ -2849,38 +3263,62 @@
             copy.id = uid('contract');
             copy.name = `${source.name || 'Contract'} Copy`;
             copy.collapsed = false;
+            copy.activeLine = 0;
             copy.lines.forEach(line => {
                 line.id = uid('line');
                 line.pickups.forEach(p => p.id = uid('pickup'));
             });
             contracts.splice(contractIndex + 1, 0, copy);
-            renderContracts();
+            activeContractIndex = contractIndex + 1;
+            renderContracts({ focusActiveTab: true });
             updateStatus();
+            saveState();
         }
 
         function removeContract(contractIndex) {
             contracts.splice(contractIndex, 1);
-            renderContracts();
+            clampActiveContractIndex();
+            renderContracts({ focusActiveTab: true });
             updateStatus();
+            saveState();
         }
 
         function toggleContract(contractIndex) {
-            if (!contracts[contractIndex]) return;
-            contracts[contractIndex].collapsed = !contracts[contractIndex].collapsed;
-            renderContracts();
-            saveState();
+            setActiveContract(contractIndex);
         }
 
         function updateContractName(contractIndex, value) {
             if (!contracts[contractIndex]) return;
             contracts[contractIndex].name = value;
+            renderContracts();
+            saveState();
+        }
+
+        function updateContractPayout(contractIndex, value) {
+            if (!contracts[contractIndex]) return;
+            contracts[contractIndex].payout = value;
+            renderContracts();
+            updateStatus();
+        }
+
+        function setActiveDeliveryLine(contractIndex, lineIndex) {
+            const contract = contracts[contractIndex];
+            if (!contract || !contract.lines?.length) return;
+            contract.activeLine = Math.max(0, Math.min(lineIndex, contract.lines.length - 1));
+            contract.collapsed = false;
+            renderContracts({ focusActiveLineTab: true });
             saveState();
         }
 
         function addDeliveryLine(contractIndex) {
-            contracts[contractIndex]?.lines.push(makeBlankLine());
-            renderContracts();
+            const contract = contracts[contractIndex];
+            if (!contract) return;
+            contract.lines.push(makeBlankLine());
+            contract.activeLine = contract.lines.length - 1;
+            contract.collapsed = false;
+            renderContracts({ focusActiveLineTab: true });
             updateStatus();
+            saveState();
         }
 
         function removeDeliveryLine(contractIndex, lineIndex) {
@@ -2888,8 +3326,10 @@
             if (!contract) return;
             contract.lines.splice(lineIndex, 1);
             if (!contract.lines.length) contract.lines.push(makeBlankLine());
+            contract.activeLine = Math.max(0, Math.min(safeNumber(contract.activeLine), contract.lines.length - 1));
             renderContracts();
             updateStatus();
+            saveState();
         }
 
         function updateLineField(contractIndex, lineIndex, field, value) {
@@ -2898,6 +3338,7 @@
             line[field] = field === 'dropoff' ? canonicalLocationName(value) : value;
             renderContracts();
             updateStatus();
+            saveState();
         }
 
         function addPickup(contractIndex, lineIndex) {
@@ -2906,6 +3347,7 @@
             line.pickups.push(makeBlankPickup());
             renderContracts();
             updateStatus();
+            saveState();
         }
 
         function removePickup(contractIndex, lineIndex, pickupIndex) {
@@ -2915,6 +3357,7 @@
             if (!line.pickups.length) line.pickups.push(makeBlankPickup());
             renderContracts();
             updateStatus();
+            saveState();
         }
 
         function updatePickupField(contractIndex, lineIndex, pickupIndex, field, value) {
@@ -2923,6 +3366,7 @@
             pickup[field] = field === 'location' ? canonicalLocationName(value) : value;
             renderContracts();
             updateStatus();
+            saveState();
         }
 
         function getContractStats(contract) {
@@ -2930,92 +3374,152 @@
             const dropoffs = new Set();
             const cargos = new Set();
             let totalScu = 0;
+            const payout = getContractPayout(contract);
             (contract.lines || []).forEach(line => {
                 if (line.dropoff) dropoffs.add(canonicalLocationName(line.dropoff));
-                if (line.cargo) cargos.add(line.cargo.trim());
-                totalScu += safeNumber(line.scu);
-                (line.pickups || []).forEach(p => { if (p.location) pickups.add(canonicalLocationName(p.location)); });
+                totalScu += lineTotalScu(line);
+                (line.pickups || []).forEach(p => {
+                    if (p.location) pickups.add(canonicalLocationName(p.location));
+                    const cargoName = String(p.cargo || line.cargo || '').trim();
+                    if (cargoName) cargos.add(cargoName);
+                });
             });
             let shape = 'Fill in contract';
             if (pickups.size === 1 && dropoffs.size === 1) shape = '1 pickup → 1 drop';
             else if (pickups.size === 1 && dropoffs.size > 1) shape = '1 pickup → multi drop';
             else if (pickups.size > 1 && dropoffs.size === 1) shape = `${pickups.size} pickups → 1 drop`;
             else if (pickups.size > 1 && dropoffs.size > 1) shape = `${pickups.size} pickups → ${dropoffs.size} drops`;
-            return {pickups, dropoffs, cargos, totalScu, shape};
+            return {pickups, dropoffs, cargos, totalScu, payout, shape};
         }
 
-        function renderContracts() {
+        function renderContracts(options = {}) {
             const root = document.getElementById('contractsList');
             if (!root) return;
+            const previousMainTabScroll = root.querySelector('.contract-main-tabs')?.scrollLeft || 0;
+            const previousLineTabScroll = root.querySelector('.contract-tabs')?.scrollLeft || 0;
             if (!contracts.length) {
                 root.innerHTML = `<div class="empty-contracts"><b>No contracts yet.</b><br>Click <b>+ Add Contract</b>, fill the drop-off, then add the pickup location(s) the mission lists underneath it.</div>`;
                 return;
             }
-            root.innerHTML = contracts.map((contract, ci) => renderContractCard(contract, ci)).join('');
-            contracts.forEach((contract, ci) => {
-                (contract.lines || []).forEach((line, li) => {
-                    setSelectValue(document.querySelector(`select[data-role="dropoff"][data-contract="${ci}"][data-line="${li}"]`), line.dropoff);
-                    (line.pickups || []).forEach((pickup, pi) => {
-                        setSelectValue(document.querySelector(`select[data-role="pickup"][data-contract="${ci}"][data-line="${li}"][data-pickup="${pi}"]`), pickup.location);
-                    });
+            normaliseContractData();
+            const activeIndex = clampActiveContractIndex();
+            root.innerHTML = `${renderContractTabs(activeIndex)}<div class="active-contract-wrap">${renderContractCard(contracts[activeIndex], activeIndex)}</div>`;
+            const contract = contracts[activeIndex];
+            (contract.lines || []).forEach((line, li) => {
+                setSelectValue(document.querySelector(`select[data-role="dropoff"][data-contract="${activeIndex}"][data-line="${li}"]`), line.dropoff);
+                (line.pickups || []).forEach((pickup, pi) => {
+                    setSelectValue(document.querySelector(`select[data-role="pickup"][data-contract="${activeIndex}"][data-line="${li}"][data-pickup="${pi}"]`), pickup.location);
                 });
             });
+            requestAnimationFrame(() => {
+                const mainTabs = root.querySelector('.contract-main-tabs');
+                const lineTabs = root.querySelector('.contract-tabs');
+                if (mainTabs) mainTabs.scrollLeft = previousMainTabScroll;
+                if (lineTabs) lineTabs.scrollLeft = previousLineTabScroll;
+                if (options.focusActiveTab) {
+                    root.querySelector('.contract-main-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+                if (options.focusActiveLineTab) {
+                    root.querySelector('.contract-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+            });
+        }
+
+        function renderContractTabs(activeIndex) {
+            const tabs = contracts.map((contract, ci) => {
+                const stats = getContractStats(contract);
+                const name = contract.name || `Contract ${ci + 1}`;
+                const active = ci === activeIndex ? ' active' : '';
+                const bits = [`${fmtScu(stats.totalScu)} SCU`];
+                if (stats.payout > 0) bits.push(`${fmtAuec(stats.payout)} aUEC`);
+                bits.push(stats.shape);
+                return `<div class="contract-main-tab-slot${active}">
+                    <button class="contract-main-tab${active}" onclick="setActiveContract(${ci})" title="Open ${escapeHtml(name)}" style="margin:0;">
+                        <b>${escapeHtml(name)}</b>
+                        <small>${escapeHtml(bits.join(' • '))}</small>
+                    </button>
+                    <button class="contract-main-tab-close danger-action" onclick="event.stopPropagation(); removeContract(${ci})" title="Delete ${escapeHtml(name)}" aria-label="Delete ${escapeHtml(name)}">×</button>
+                </div>`;
+            }).join('');
+            return `<div class="contract-main-tabs" aria-label="Contract tabs">${tabs}<button class="contract-main-tab contract-main-tab-add" onclick="addContract()" style="margin:0;">＋ Contract</button></div>`;
         }
 
         function renderContractCard(contract, ci) {
             const stats = getContractStats(contract);
             const cargos = [...stats.cargos].slice(0, 3).join(', ') || 'No cargo yet';
-            const collapsedClass = contract.collapsed ? 'collapsed' : '';
-            return `<article class="contract-card ${contract.collapsed ? '' : 'active'}">
+            const lines = Array.isArray(contract.lines) && contract.lines.length ? contract.lines : [makeBlankLine()];
+            const activeLine = Math.max(0, Math.min(safeNumber(contract.activeLine), lines.length - 1));
+            return `<article class="contract-card active">
                 <div class="contract-head">
                     <div>
                         <div class="contract-title">
-                            <button class="secondary" onclick="toggleContract(${ci})" title="Collapse / expand" style="margin:0;">${contract.collapsed ? '▸' : '▾'}</button>
+                            <span class="contract-position-note">Contract ${ci + 1} of ${contracts.length}</span>
                             <input value="${escapeHtml(contract.name || `Contract ${ci + 1}`)}" onchange="updateContractName(${ci}, this.value)" oninput="contracts[${ci}].name=this.value; saveState();">
+                            <div class="contract-value">
+                                <label>aUEC</label>
+                                <input type="number" min="0" step="1" value="${escapeHtml(contract.payout || '')}" placeholder="Contract value" onchange="updateContractPayout(${ci}, this.value)" oninput="contracts[${ci}].payout=this.value; saveState(); updateStatus();">
+                            </div>
                         </div>
                         <div class="contract-summary">
                             <span class="contract-pill good">${escapeHtml(stats.shape)}</span>
                             <span class="contract-pill">${fmtScu(stats.totalScu)} SCU</span>
+                            <span class="contract-pill good">${fmtAuec(stats.payout)} aUEC</span>
                             <span class="contract-pill">${escapeHtml(cargos)}</span>
-                            <span class="contract-pill warn">${contract.lines?.length || 0} delivery line${(contract.lines?.length || 0) === 1 ? '' : 's'}</span>
+                            <span class="contract-pill warn">${lines.length} delivery line${lines.length === 1 ? '' : 's'}</span>
                         </div>
                     </div>
                     <div class="contract-actions">
                         <button class="secondary" onclick="addDeliveryLine(${ci})">＋ Line</button>
                         <button class="secondary" onclick="duplicateContract(${ci})">Copy</button>
-                        <button class="secondary" onclick="removeContract(${ci})">Delete</button>
+                        <button class="secondary danger-action contract-delete-btn" onclick="removeContract(${ci})" title="Delete this whole contract">Delete Contract</button>
                     </div>
                 </div>
-                <div class="contract-body ${collapsedClass}">
-                    ${(contract.lines || []).map((line, li) => renderDeliveryLine(line, ci, li, contract.lines.length)).join('')}
-                    <button class="secondary" onclick="addDeliveryLine(${ci})" style="margin:0;">＋ Add another delivery line</button>
+                <div class="contract-body">
+                    ${renderLineTabs(contract, ci, activeLine)}
+                    <div class="contract-editor">
+                        ${renderDeliveryLine(lines[activeLine], ci, activeLine, lines.length)}
+                    </div>
                 </div>
             </article>`;
         }
 
+        function renderLineTabs(contract, ci, activeLine) {
+            const lines = contract.lines || [];
+            const tabs = lines.map((line, li) => {
+                const drop = line.dropoff ? canonicalLocationName(line.dropoff).replace(/ \(.+?\)/g, '') : 'No drop-off';
+                const total = lineTotalScu(line);
+                const active = li === activeLine ? ' active' : '';
+                return `<button class="contract-tab${active}" onclick="setActiveDeliveryLine(${ci}, ${li})" title="Edit delivery line ${li + 1}" style="margin:0;">
+                    <span>Line ${li + 1}<small>${escapeHtml(drop)}${total ? ` • ${fmtScu(total)} SCU` : ''}</small></span>
+                </button>`;
+            }).join('');
+            return `<div class="contract-tabs">${tabs}<button class="contract-tab contract-tab-add" onclick="addDeliveryLine(${ci})" style="margin:0;">＋ Line</button></div>`;
+        }
+
         function renderDeliveryLine(line, ci, li, lineCount) {
+            const pickupTotal = linePickupScuTotal(line);
+            const shownTotal = pickupTotal > 0 ? fmtScu(pickupTotal) : '';
+            const lineDeleteButton = lineCount > 1
+                ? `<button class="secondary danger-action line-delete-btn" onclick="removeDeliveryLine(${ci}, ${li})" title="Delete this delivery line">Delete Line</button>`
+                : '';
             return `<div class="delivery-line">
-                <div class="line-top">
+                <div class="line-top${lineCount <= 1 ? ' no-line-delete' : ''}">
                     <div>
-                        <label>Drop-off</label>
+                        <label>Deliver to</label>
                         <select data-role="dropoff" data-contract="${ci}" data-line="${li}" onchange="updateLineField(${ci}, ${li}, 'dropoff', this.value)">${selectOptionsHtml(line.dropoff)}</select>
-                        <div class="mini-note">Matches the first mission line: Deliver cargo to this place.</div>
-                    </div>
-                    <div>
-                        <label>Cargo</label>
-                        <input value="${escapeHtml(line.cargo || '')}" placeholder="Waste / Potassium" onchange="updateLineField(${ci}, ${li}, 'cargo', this.value)" oninput="contracts[${ci}].lines[${li}].cargo=this.value; saveState();">
                     </div>
                     <div>
                         <label>Total SCU</label>
-                        <input type="number" min="0" step="0.1" value="${escapeHtml(line.scu || '')}" placeholder="SCU" onchange="updateLineField(${ci}, ${li}, 'scu', this.value)" oninput="contracts[${ci}].lines[${li}].scu=this.value; saveState(); updateStatus();">
+                        <input class="readonly-total" data-role="drop-total" data-contract="${ci}" data-line="${li}" type="text" value="${escapeHtml(shownTotal)}" placeholder="auto" readonly title="Auto-total from the collect rows below">
                     </div>
-                    <button class="secondary" onclick="removeDeliveryLine(${ci}, ${li})" style="margin:0;" ${lineCount <= 1 ? 'disabled' : ''}>Remove</button>
+                    ${lineDeleteButton}
                 </div>
-                <div class="section-title">
-                    <b>Pickup location(s)</b>
-                    <button class="secondary" onclick="addPickup(${ci}, ${li})" style="margin:0; padding:6px 8px; font-size:8px;">＋ Pickup</button>
+                <div class="collect-titlebar">
+                    <div><b>Collect cargo</b><small>Each row is one pickup: where from, what item, and how many SCU.</small></div>
+                    <button class="secondary" onclick="addPickup(${ci}, ${li})">＋ Collect Row</button>
                 </div>
                 <div class="pickup-list">
+                    <div class="pickup-header"><span>Collect from</span><span>Item</span><span>SCU</span><span>Action</span></div>
                     ${(line.pickups || []).map((pickup, pi) => renderPickupRow(pickup, ci, li, pi, line.pickups.length)).join('')}
                 </div>
             </div>`;
@@ -3028,10 +3532,14 @@
                     <select data-role="pickup" data-contract="${ci}" data-line="${li}" data-pickup="${pi}" onchange="updatePickupField(${ci}, ${li}, ${pi}, 'location', this.value)">${selectOptionsHtml(pickup.location)}</select>
                 </div>
                 <div>
-                    <label>SCU here</label>
-                    <input type="number" min="0" step="0.1" value="${escapeHtml(pickup.scu || '')}" placeholder="auto" onchange="updatePickupField(${ci}, ${li}, ${pi}, 'scu', this.value)" oninput="contracts[${ci}].lines[${li}].pickups[${pi}].scu=this.value; saveState(); updateStatus();">
+                    <label>Item</label>
+                    <input value="${escapeHtml(pickup.cargo || '')}" placeholder="Waste / Potassium" onchange="updatePickupField(${ci}, ${li}, ${pi}, 'cargo', this.value)" oninput="contracts[${ci}].lines[${li}].pickups[${pi}].cargo=this.value; saveState(); updateStatus();">
                 </div>
-                <button class="secondary" onclick="removePickup(${ci}, ${li}, ${pi})" style="margin:0;" ${pickupCount <= 1 ? 'disabled' : ''}>Remove</button>
+                <div>
+                    <label>SCU</label>
+                    <input type="number" min="0" step="0.1" value="${escapeHtml(pickup.scu || '')}" placeholder="SCU" onchange="updatePickupField(${ci}, ${li}, ${pi}, 'scu', this.value)" oninput="contracts[${ci}].lines[${li}].pickups[${pi}].scu=this.value; updateDeliveryLineTotal(${ci}, ${li}); saveState(); updateStatus();">
+                </div>
+                <button class="secondary danger-action pickup-remove-btn" onclick="removePickup(${ci}, ${li}, ${pi})" title="Remove this collect row" aria-label="Remove collect row" ${pickupCount <= 1 ? 'disabled' : ''}>×</button>
             </div>`;
         }
 
@@ -3059,8 +3567,10 @@
                 uniqueDrops.add(task.dropoff);
                 task.pickups.forEach(p => uniquePickups.add(p.location));
             });
+            const payout = getTotalPayout();
             const cargoNote = tasks.length ? ` | ${tasks.length} line${tasks.length === 1 ? '' : 's'} | ${uniquePickups.size} pickup${uniquePickups.size === 1 ? '' : 's'} → ${uniqueDrops.size} drop${uniqueDrops.size === 1 ? '' : 's'}` : '';
-            return { carriedCargo, deliveryCargo: carriedCargo, cargoNote, cargoProblem: false, cargoWarn: false };
+            const payoutNote = payout > 0 ? ` | ${fmtAuec(payout)} aUEC` : '';
+            return { carriedCargo, deliveryCargo: carriedCargo, cargoNote: `${cargoNote}${payoutNote}`, cargoProblem: false, cargoWarn: false, payout };
         }
 
         function selectedShipCapacity() {
@@ -3094,13 +3604,9 @@
         }
 
         function splitPickupAmount(total, pickups, index) {
-            const explicit = safeNumber(pickups[index]?.scu);
-            if (explicit > 0) return explicit;
-            const explicitTotal = pickups.reduce((sum, p) => sum + safeNumber(p.scu), 0);
-            const blanks = pickups.filter(p => safeNumber(p.scu) <= 0).length;
-            if (explicitTotal > 0 && blanks > 0) return Math.max(0, (total - explicitTotal) / blanks);
-            if (pickups.length > 0) return total / pickups.length;
-            return total;
+            // New rule: pickup rows own their SCU. The drop-off only displays their total.
+            // The total argument is kept only for old saved data fallback inside buildRouteTasks().
+            return safeNumber(pickups[index]?.scu);
         }
 
         function buildRouteTasks(options = {}) {
@@ -3109,9 +3615,12 @@
             contracts.forEach((contract, ci) => {
                 (contract.lines || []).forEach((line, li) => {
                     const dropoffLoc = findLocationByName(line.dropoff);
-                    const totalScu = safeNumber(line.scu);
                     const pickupRows = (line.pickups || []).filter(p => p.location);
-                    if (!line.dropoff && !pickupRows.length && !line.cargo && !line.scu) return;
+                    const explicitPickupTotal = linePickupScuTotal(line);
+                    const legacyTotal = safeNumber(line.scu);
+                    const totalScu = explicitPickupTotal > 0 ? explicitPickupTotal : legacyTotal;
+                    const useLegacySplit = explicitPickupTotal <= 0 && legacyTotal > 0 && pickupRows.length > 0;
+                    if (!line.dropoff && !pickupRows.length && totalScu <= 0) return;
                     if (!dropoffLoc) {
                         warnings.push(`${contract.name || `Contract ${ci + 1}`} line ${li + 1}: drop-off not found: ${line.dropoff || '[blank]'}`);
                         return;
@@ -3126,18 +3635,25 @@
                             id: `${contract.id}:${line.id}:${pickup.id}`,
                             location: loc.name,
                             loc,
-                            scu: splitPickupAmount(totalScu, pickupRows, pi)
+                            cargo: String(pickup.cargo || line.cargo || '').trim() || 'Cargo',
+                            scu: useLegacySplit ? (legacyTotal / pickupRows.length) : splitPickupAmount(totalScu, pickupRows, pi)
                         };
                     }).filter(Boolean);
                     if (!validPickups.length) {
                         warnings.push(`${contract.name || `Contract ${ci + 1}`} line ${li + 1}: add at least one valid pickup.`);
                         return;
                     }
+                    if (totalScu <= 0) {
+                        warnings.push(`${contract.name || `Contract ${ci + 1}`} line ${li + 1}: add SCU to the pickup row${validPickups.length === 1 ? '' : 's'} so the drop-off can total it.`);
+                    } else if (validPickups.some(p => p.scu <= 0)) {
+                        warnings.push(`${contract.name || `Contract ${ci + 1}`} line ${li + 1}: one or more pickup rows has 0 SCU.`);
+                    }
+                    const cargoSummary = [...new Set(validPickups.map(p => String(p.cargo || '').trim()).filter(Boolean))].join(', ') || 'Cargo';
                     tasks.push({
                         id: `${contract.id}:${line.id}`,
                         contractName: contract.name || `Contract ${ci + 1}`,
                         lineNumber: li + 1,
-                        cargo: line.cargo || 'Cargo',
+                        cargo: cargoSummary,
                         totalScu,
                         dropoff: dropoffLoc.name,
                         dropoffLoc,
@@ -3195,6 +3711,13 @@
                 return task.pickups.every(p => picked.has(p.id));
             }
 
+            function hasUnpickedPickupForDropoff(dropoffName) {
+                return tasks.some(task => {
+                    if (delivered.has(task.id) || task.dropoff !== dropoffName) return false;
+                    return task.pickups.some(pickup => !picked.has(pickup.id));
+                });
+            }
+
             function processAt(loc, prefix) {
                 const actions = [];
                 let changed = true;
@@ -3227,7 +3750,7 @@
                     if (action.kind === 'pickup') {
                         steps.push({
                             id: actionId,
-                            text: `PICKUP: ${loc.name} — ${fmtScu(action.amount)} SCU ${action.task.cargo} → ${action.task.dropoff} [${action.task.contractName}]`,
+                            text: `PICKUP: ${loc.name} — ${fmtScu(action.amount)} SCU ${action.pickup.cargo || action.task.cargo} → ${action.task.dropoff} [${action.task.contractName}]`,
                             clickable: true
                         });
                     } else {
@@ -3246,7 +3769,10 @@
             while (delivered.size < tasks.length && guard++ < 300) {
                 const candidates = [];
                 tasks.forEach(task => {
-                    if (!delivered.has(task.id) && allTaskPicked(task)) {
+                    const shouldDropNow = !delivered.has(task.id)
+                        && allTaskPicked(task)
+                        && !hasUnpickedPickupForDropoff(task.dropoff);
+                    if (shouldDropNow) {
                         candidates.push({type: 'drop', loc: task.dropoffLoc, task});
                     }
                     task.pickups.forEach(pickup => {
@@ -3302,10 +3828,11 @@
             });
 
             renderRoute({
-                type: `${detected} (Contract Cards / Gateway Aware)`,
+                type: `${detected} (Collect-First / Gateway Aware)`,
                 steps,
                 totalDist: totalDist.toFixed(1),
                 totalCargo: fmtScu(maxCargo),
+                totalPayout: getTotalPayout(),
                 startName: startLoc.name,
                 path: path.filter(Boolean),
                 mapSegments
@@ -3370,7 +3897,7 @@ function addCustomLocation() {
 
         function buildRouteInputSummaryHtml() {
             const stats = getCargoSummary();
-            return `<strong>Route calculated</strong><div class="summary-grid"><div class="summary-card"><b>Contracts</b>${contracts.length}</div><div class="summary-card"><b>Max Cargo</b>${stats.carriedCargo} SCU</div></div>`;
+            return `<strong>Route calculated</strong><div class="summary-grid"><div class="summary-card"><b>Contracts</b>${contracts.length}</div><div class="summary-card"><b>Max Cargo</b>${stats.carriedCargo} SCU</div><div class="summary-card"><b>Total Payout</b>${fmtAuec(stats.payout || 0)} aUEC</div></div>`;
         }
 
         function collapseRouteInputs() { /* cards stay visible; manual collapse is per contract */ }
@@ -3385,6 +3912,7 @@ function addCustomLocation() {
                 mapSystem: getMapSelectedSystem(),
                 ship: getDOM('shipSelect')?.value,
                 start: getDOM('startLocation')?.value,
+                activeContractIndex,
                 contracts
             };
             localStorage.setItem('scContractState', JSON.stringify(state));
@@ -3399,6 +3927,9 @@ function addCustomLocation() {
                     if (state.mapSystem && mapConfig[state.mapSystem]) setMapSystem(state.mapSystem, { redraw: false, reset: false, save: true });
                     if (state.ship) getDOM('shipSelect').value = state.ship;
                     contracts = Array.isArray(state.contracts) ? state.contracts : [];
+                    activeContractIndex = Number.isFinite(Number(state.activeContractIndex)) ? Number(state.activeContractIndex) : 0;
+                    normaliseContractData();
+                    clampActiveContractIndex();
                 } catch {
                     contracts = [];
                 }
