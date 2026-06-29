@@ -134,8 +134,9 @@
         }
         .map-search-pulse { fill: none; stroke: var(--accent); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: searchPulse 1.4s ease-out infinite; pointer-events: none; }
 
-        .system-map-panel { grid-column: 1 / -1; background: #111; border: 1px solid #2a2a2a; padding: 16px; overflow: hidden; position: relative; max-height: 70vh; }
-        .map-shell { position: relative; width: 100%; height: 60vh; background: #050505; border: 1px solid #333; }
+        .system-map-panel { grid-column: 1 / -1; background: #111; border: 1px solid #2a2a2a; padding: 16px; overflow: visible; position: relative; max-height: none; }
+        .map-shell { position: relative; width: 100%; height: clamp(640px, 92vh, 900px); background: #050505; border: 1px solid #333; }
+        .system-map-panel.body-view-open .map-shell { height: clamp(760px, 108vh, 1120px); }
         .map-toolbar { display: none; }
         #systemMap { width: 100%; height: 100%; display: block; background: radial-gradient(circle at center, rgba(var(--accent-rgb),0.08), rgba(0,0,0,0.85) 55%, #050505 100%); border: 1px solid #333; cursor: grab; user-select: none; touch-action: none; transition: opacity 0.28s ease, transform 0.28s ease, filter 0.28s ease; transform-origin: center center; }
         #systemMap.dragging { cursor: grabbing; }
@@ -209,6 +210,7 @@
         @media (max-width: 760px) {
             .system-map-panel { max-height: none; overflow: visible; padding: 10px; }
             .map-shell { height: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: visible; }
+            .system-map-panel.body-view-open .map-shell { height: auto; }
             #systemMap { order: 2; height: 430px; min-height: 430px; flex: 0 0 auto; }
             .map-sidebar { position: relative; order: 1; inset: auto; left: auto; right: auto; top: auto; width: 100%; max-height: none; overflow: visible; padding: 10px; }
             .map-sidebar .map-system-control { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; }
@@ -607,6 +609,24 @@
         }
 
 
+        /* === Euterpe body-view v1: fake-3D moon globe test === */
+        .body-back-button { display:none; }
+        .system-map-panel.body-view-open .body-back-button { display:block !important; grid-column: span 2; }
+        .system-map-panel.body-view-open .map-sidebar { border-color: rgba(147,197,253,0.55); }
+        .map-body-outline { fill: url(#euterpeBodyGradient); stroke: rgba(147,197,253,0.55); stroke-width: 1.2; }
+        .map-body-limb { fill:none; stroke: rgba(255,255,255,0.18); stroke-width: 3; }
+        .map-body-grid { fill:none; stroke: rgba(255,255,255,0.16); stroke-width: 0.8; stroke-dasharray: 3 6; }
+        .map-body-grid.equator { stroke: rgba(var(--accent-rgb),0.36); stroke-width: 1.1; stroke-dasharray: 5 5; }
+        .map-body-marker { fill: var(--accent); stroke:#fff; stroke-width:1.4; filter: drop-shadow(0 0 9px var(--accent)); cursor:pointer; }
+        .map-body-marker.backside { fill:#666; stroke:#999; opacity:0.25; filter:none; }
+        .map-body-label { fill:#fff; font-family:'Courier New', monospace; font-size:10px; font-weight:800; paint-order:stroke; stroke:#050505; stroke-width:3px; pointer-events:none; }
+        .map-body-label-sub { fill:#aaa; font-family:'Courier New', monospace; font-size:8px; font-weight:700; paint-order:stroke; stroke:#050505; stroke-width:2px; pointer-events:none; }
+        .map-body-callout { stroke: var(--accent); stroke-width:1; opacity:.75; pointer-events:none; }
+        .map-body-card { fill: rgba(8,8,8,0.72); stroke: rgba(var(--accent-rgb),0.35); stroke-width:1; }
+        .map-body-card-text { fill:#d7d7d7; font-family:'Courier New', monospace; font-size:9px; }
+        .map-body-card-title { fill:var(--accent); font-family:'Courier New', monospace; font-size:12px; font-weight:900; letter-spacing:1.1px; }
+
+
     </style>
 </head>
 <body>
@@ -835,6 +855,7 @@
                     <button class="secondary" onclick="resetMapZoom()">Reset View</button>
                     <button id="mapSearchToggle" class="secondary" onclick="toggleMapSearchMode()">⌕ Search</button>
                     <button class="secondary" onclick="drawSystemMap()">↻ Redraw</button>
+                    <button id="bodyBackButton" class="secondary body-back-button" onclick="exitBodyView()">↩ System Map</button>
                 </div>
 
                 <div id="mapSearchPanel" class="map-search-panel">
@@ -849,7 +870,7 @@
                     </div>
                 </div>
 
-                <div class="map-help">Drag to pan • Ctrl/Shift + wheel to zoom • double-click gateways to jump</div>
+                <div class="map-help">Drag to pan • Ctrl/Shift + wheel to zoom • double-click Calliope, Clio or Euterpe for globe view</div>
             </aside>
 
             <div id="mapHoverInfo" class="map-hover-info">Hover a marker to see full name and coordinates.</div>
@@ -985,6 +1006,161 @@
         let mapSearchQuery = '';
         let mapSearchSelectedName = null;
         let mapSearchKeyboardIndex = 0;
+        let bodyViewMode = false;
+        let activeBodyName = null;
+        let bodyViewRotation = { yaw: 0, pitch: -4 };
+        let bodyIsDragging = false;
+        let bodyDragStart = null;
+        let bodyRotationStart = null;
+        const bodyViewAliases = new Map([
+            ['Calliope', 'Microtech Calliope'],
+            ['Microtech Calliope', 'Microtech Calliope'],
+            ['OOC_Stanton_4a_Calliope', 'Microtech Calliope'],
+            ['Clio', 'Microtech Clio'],
+            ['Microtech Clio', 'Microtech Clio'],
+            ['OOC_Stanton_4b_Clio', 'Microtech Clio'],
+            ['Euterpe', 'Microtech Euterpe'],
+            ['Microtech Euterpe', 'Microtech Euterpe'],
+            ['OOC_Stanton_4c_Euterpe', 'Microtech Euterpe']
+        ]);
+
+        function makeCapturedSurfaceLocation(data) {
+            const entry = {
+                group: 'Onyx / ASD Delve',
+                type: 'onyx',
+                verified: true,
+                ...data
+            };
+
+            // Future helper: if you ever paste a real lat/lon/radius capture instead of XYZ,
+            // this can build the local vector without changing the globe renderer.
+            if (!entry.localPos && entry.lat !== undefined && entry.lon !== undefined && entry.radius) {
+                const height = Number(entry.height || entry.altitude || 0);
+                const radius = Number(entry.radius) + height;
+                const phi = Number(entry.lat) * Math.PI / 180;
+                const theta = Number(entry.lon) * Math.PI / 180;
+                entry.localPos = {
+                    x: Math.cos(phi) * Math.sin(theta) * radius,
+                    y: -Math.cos(phi) * Math.cos(theta) * radius,
+                    z: Math.sin(phi) * radius
+                };
+            }
+            return entry;
+        }
+
+        const debugCaptureOnlyNote = 'Only locations captured from the in-game debug overlay are loaded. Seeded/test markers have been removed.';
+        const bodyViewData = {
+            'Microtech Calliope': {
+                title: 'CALLIOPE',
+                subtitle: 'microTech moon surface capture map',
+                system: 'Stanton',
+                parent: 'Microtech',
+                bodyCode: 'OOC_Stanton_4a_Calliope',
+                radius: 240000,
+                accent: '#93c5fd',
+                note: debugCaptureOnlyNote,
+                locations: [
+                    makeCapturedSurfaceLocation({
+                        name: 'Onyx Facility S4A9 / ASD Delve Facility 009',
+                        shortName: 'S4A9',
+                        group: 'Onyx / ASD Delve',
+                        type: 'onyx',
+                        bodyCode: 'OOC_Stanton_4a_Calliope',
+                        cubePage: '+Y',
+                        source: 'S4A9 debug overlay capture',
+                        localPos: { x: -70726.796906, y: 215246.881378, z: 79549.634394 },
+                        xyPos: { x: -78860.290053, y: 88697.738274 },
+                        radius: 240000,
+                        altitude: -55.218559,
+                        lat: 19.346459685236173,
+                        lon: -161.81027641669934
+                    })
+                ]
+            },
+            'Microtech Clio': {
+                title: 'CLIO',
+                subtitle: 'microTech moon surface capture map',
+                system: 'Stanton',
+                parent: 'Microtech',
+                bodyCode: 'OOC_Stanton_4b_Clio',
+                radius: null,
+                accent: '#93c5fd',
+                note: debugCaptureOnlyNote,
+                locations: []
+            },
+            'Microtech Euterpe': {
+                title: 'EUTERPE',
+                subtitle: 'microTech moon surface capture map',
+                system: 'Stanton',
+                parent: 'Microtech',
+                bodyCode: 'OOC_Stanton_4c_Euterpe',
+                radius: 213000,
+                accent: '#93c5fd',
+                note: debugCaptureOnlyNote,
+                locations: [
+                    makeCapturedSurfaceLocation({
+                        name: 'Onyx Facility S4C4 / ASD Delve Facility 004',
+                        shortName: 'S4C4',
+                        group: 'Onyx / ASD Delve',
+                        type: 'onyx',
+                        bodyCode: 'OOC_Stanton_4c_Euterpe',
+                        cubePage: '+Y',
+                        source: 'S4C4 debug overlay capture',
+                        localPos: { x: -105018.309280, y: 172025.760606, z: -69054.938811 },
+                        xyPos: { x: -130032.260979, y: -85502.898775 },
+                        radius: 213000,
+                        altitude: -82.160457,
+                        lat: -18.9126046237666,
+                        lon: -148.5967639436417
+                    }),
+                    makeCapturedSurfaceLocation({
+                        name: 'Onyx Facility S4C5 / ASD Delve Facility 005',
+                        shortName: 'S4C5',
+                        group: 'Onyx / ASD Delve',
+                        type: 'onyx',
+                        bodyCode: 'OOC_Stanton_4c_Euterpe',
+                        cubePage: '-Y',
+                        source: 'S4C5 debug overlay capture',
+                        localPos: { x: -14944.594121, y: -177805.543375, z: -116928.744305 },
+                        xyPos: { x: -17902.694854, y: 140073.374283 },
+                        radius: 213000,
+                        altitude: -63.856635,
+                        lat: -33.23726036034428,
+                        lon: -4.804430277926875
+                    }),
+                    makeCapturedSurfaceLocation({
+                        name: 'Onyx Facility S4C7 / ASD Delve Facility 007',
+                        shortName: 'S4C7',
+                        group: 'Onyx / ASD Delve',
+                        type: 'onyx',
+                        bodyCode: 'OOC_Stanton_4c_Euterpe',
+                        cubePage: '-Z',
+                        source: 'S4C7 debug overlay capture',
+                        localPos: { x: 25620.940880, y: 148884.679543, z: -150166.616240 },
+                        xyPos: { x: 36341.369323, y: 211181.665053 },
+                        radius: 213000,
+                        altitude: -61.767115,
+                        lat: -44.8275880617495,
+                        lon: 170.235843445466
+                    }),
+                    makeCapturedSurfaceLocation({
+                        name: 'Onyx Facility S4C10 / ASD Delve Facility 010',
+                        shortName: 'S4C10',
+                        group: 'Onyx / ASD Delve',
+                        type: 'onyx',
+                        bodyCode: 'OOC_Stanton_4c_Euterpe',
+                        cubePage: '-Y',
+                        source: 'S4C10 debug overlay capture',
+                        localPos: { x: 8729.220478, y: -210482.261612, z: -33606.027682 },
+                        xyPos: { x: 8833.637404, y: -34008.014006 },
+                        radius: 213000,
+                        altitude: -69.536,
+                        lat: -9.063733878413096,
+                        lon: 2.374836900518924
+                    })
+                ]
+            }
+        };
         let routeInputsCollapsed = false;
         let activeContractIndex = 0;
 
@@ -1163,7 +1339,7 @@
         }
 
         function resetMapZoom() {
-            mapViewBox = getDefaultMapViewBox();
+            mapViewBox = bodyViewMode ? { x: 0, y: 0, w: 1000, h: 640 } : getDefaultMapViewBox();
             applyMapViewBox();
         }
 
@@ -1182,6 +1358,14 @@
 
             svg.addEventListener('pointerdown', (e) => {
                 if (e.target.closest('.map-object')) return;
+                if (bodyViewMode) {
+                    bodyIsDragging = true;
+                    bodyDragStart = { x: e.clientX, y: e.clientY };
+                    bodyRotationStart = { ...bodyViewRotation };
+                    svg.classList.add('dragging');
+                    svg.setPointerCapture(e.pointerId);
+                    return;
+                }
                 mapIsDragging = true;
                 mapDragStart = { x: e.clientX, y: e.clientY };
                 mapSvgStart = { ...mapViewBox };
@@ -1190,6 +1374,14 @@
             });
 
             svg.addEventListener('pointermove', (e) => {
+                if (bodyViewMode && bodyIsDragging && bodyDragStart && bodyRotationStart) {
+                    const dx = e.clientX - bodyDragStart.x;
+                    const dy = e.clientY - bodyDragStart.y;
+                    bodyViewRotation.yaw = bodyRotationStart.yaw + dx * 0.45;
+                    bodyViewRotation.pitch = Math.max(-78, Math.min(78, bodyRotationStart.pitch + dy * 0.35));
+                    drawBodyView(false);
+                    return;
+                }
                 if (!mapIsDragging || !mapDragStart || !mapSvgStart) return;
                 const rect = svg.getBoundingClientRect();
                 const dx = (e.clientX - mapDragStart.x) / rect.width * mapSvgStart.w;
@@ -1201,12 +1393,14 @@
 
             svg.addEventListener('pointerup', (e) => {
                 mapIsDragging = false;
+                bodyIsDragging = false;
                 svg.classList.remove('dragging');
                 try { svg.releasePointerCapture(e.pointerId); } catch {}
             });
 
             svg.addEventListener('pointerleave', () => {
                 mapIsDragging = false;
+                bodyIsDragging = false;
                 svg.classList.remove('dragging');
             });
         }
@@ -1327,6 +1521,11 @@
         function setMapSystem(system, options = {}) {
             const { redraw = true, reset = true, save = true } = options;
             const nextSystem = mapConfig[system] ? system : 'Stanton';
+            if (bodyViewMode) {
+                bodyViewMode = false;
+                activeBodyName = null;
+                syncBodyViewControls();
+            }
             const mapSelect = document.getElementById('mapSystemSelect');
             if (mapSelect) mapSelect.value = nextSystem;
             if (save) localStorage.setItem('scMapSystem', nextSystem);
@@ -1421,6 +1620,243 @@
 				}, 320);
 			}, 300);
 		}
+
+
+        function resolveBodyViewName(name) {
+            if (!name) return null;
+            if (bodyViewData[name]) return name;
+            return bodyViewAliases.get(name) || null;
+        }
+
+        function syncBodyViewControls() {
+            const panel = document.querySelector('.system-map-panel');
+            const back = document.getElementById('bodyBackButton');
+            const title = document.querySelector('.map-sidebar .map-title');
+            const subtitle = document.querySelector('.map-sidebar-subtitle');
+            if (panel) panel.classList.toggle('body-view-open', bodyViewMode);
+            if (back) back.style.display = bodyViewMode ? 'block' : 'none';
+            if (title) title.textContent = bodyViewMode && activeBodyName ? `${bodyViewData[activeBodyName]?.title || activeBodyName} Surface` : 'System Orbital Map';
+            if (subtitle) subtitle.textContent = bodyViewMode ? 'verified debug-coordinate globe' : 'generated from location coordinates';
+        }
+
+        function enterBodyView(name, options = {}) {
+            const bodyName = resolveBodyViewName(name);
+            if (!bodyName) return false;
+            const { animate = true } = options;
+            const svg = getDOM('systemMap');
+            const panel = document.querySelector('.system-map-panel');
+            const banner = document.getElementById('mapJumpBanner');
+
+            if (banner) banner.textContent = `Opening ${bodyViewData[bodyName].title} globe...`;
+            if (animate && panel) panel.classList.add('map-jumping');
+            if (animate && svg) svg.classList.add('map-jump-out');
+
+            setTimeout(() => {
+                bodyViewMode = true;
+                activeBodyName = bodyName;
+                bodyViewRotation = { yaw: 0, pitch: -4 };
+                mapViewBox = { x: 0, y: 0, w: 1000, h: 640 };
+                applyMapViewBox();
+                syncBodyViewControls();
+                drawBodyView(true);
+                if (svg) {
+                    svg.classList.remove('map-jump-out');
+                    svg.classList.add('map-jump-in');
+                    setTimeout(() => svg.classList.remove('map-jump-in'), 320);
+                }
+                if (panel) setTimeout(() => panel.classList.remove('map-jumping'), 320);
+            }, animate ? 300 : 0);
+            return true;
+        }
+
+        function exitBodyView() {
+            if (!bodyViewMode) return;
+            const svg = getDOM('systemMap');
+            const panel = document.querySelector('.system-map-panel');
+            const banner = document.getElementById('mapJumpBanner');
+            if (banner) banner.textContent = 'Returning to Stanton map...';
+            if (panel) panel.classList.add('map-jumping');
+            if (svg) svg.classList.add('map-jump-out');
+            setTimeout(() => {
+                bodyViewMode = false;
+                activeBodyName = null;
+                syncBodyViewControls();
+                resetMapZoom();
+                drawSystemMap(currentRoute?.path || []);
+                if (svg) {
+                    svg.classList.remove('map-jump-out');
+                    svg.classList.add('map-jump-in');
+                    setTimeout(() => svg.classList.remove('map-jump-in'), 320);
+                }
+                if (panel) setTimeout(() => panel.classList.remove('map-jumping'), 320);
+            }, 260);
+        }
+
+        function normaliseBodyVector(pos) {
+            const length = Math.hypot(pos.x, pos.y, pos.z) || 1;
+            return { x: pos.x / length, y: pos.y / length, z: pos.z / length, length };
+        }
+
+        function rotateBodyVector(v) {
+            const yaw = (bodyViewRotation.yaw || 0) * Math.PI / 180;
+            const pitch = (bodyViewRotation.pitch || 0) * Math.PI / 180;
+            const cy = Math.cos(yaw), sy = Math.sin(yaw);
+            const cp = Math.cos(pitch), sp = Math.sin(pitch);
+            const x1 = v.x * cy - v.y * sy;
+            const y1 = v.x * sy + v.y * cy;
+            const z1 = v.z;
+            const y2 = y1 * cp - z1 * sp;
+            const z2 = y1 * sp + z1 * cp;
+            return { x: x1, y: y2, z: z2, depth: -y2 };
+        }
+
+        function projectBodyUnitVector(v, cx, cy, radius) {
+            const r = rotateBodyVector(v);
+            return {
+                x: cx + r.x * radius,
+                y: cy - r.z * radius,
+                depth: r.depth,
+                visible: r.depth >= -0.025,
+                rotated: r
+            };
+        }
+
+        function projectBodyLocalPos(pos, cx, cy, radius) {
+            return projectBodyUnitVector(normaliseBodyVector(pos), cx, cy, radius);
+        }
+
+        function bodyGridPath(points, cx, cy, radius, cls = 'map-body-grid') {
+            const paths = [];
+            let current = [];
+            points.forEach(v => {
+                const p = projectBodyUnitVector(v, cx, cy, radius);
+                if (p.visible) current.push(`${current.length ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
+                else if (current.length) {
+                    paths.push(`<path class="${cls}" d="${current.join(' ')}"/>`);
+                    current = [];
+                }
+            });
+            if (current.length) paths.push(`<path class="${cls}" d="${current.join(' ')}"/>`);
+            return paths.join('');
+        }
+
+        function makeBodyLatitudeLine(latDeg) {
+            const phi = latDeg * Math.PI / 180;
+            const points = [];
+            for (let deg = -180; deg <= 180; deg += 4) {
+                const theta = deg * Math.PI / 180;
+                points.push({
+                    x: Math.cos(phi) * Math.sin(theta),
+                    y: -Math.cos(phi) * Math.cos(theta),
+                    z: Math.sin(phi)
+                });
+            }
+            return points;
+        }
+
+        function makeBodyLongitudeLine(lonDeg) {
+            const theta = lonDeg * Math.PI / 180;
+            const points = [];
+            for (let deg = -88; deg <= 88; deg += 4) {
+                const phi = deg * Math.PI / 180;
+                points.push({
+                    x: Math.cos(phi) * Math.sin(theta),
+                    y: -Math.cos(phi) * Math.cos(theta),
+                    z: Math.sin(phi)
+                });
+            }
+            return points;
+        }
+
+        function drawBodyView() {
+            const svg = getDOM('systemMap');
+            if (!svg) return;
+            initMapInteractions();
+            applyMapViewBox();
+            const body = bodyViewData[activeBodyName || 'Microtech Euterpe'];
+            if (!body) return;
+            const cx = 500, cy = 328, radius = 212;
+            const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f97316';
+            const locationsOnBody = body.locations || [];
+            const grid = [];
+            [-60, -30, 0, 30, 60].forEach(lat => grid.push(bodyGridPath(makeBodyLatitudeLine(lat), cx, cy, radius, lat === 0 ? 'map-body-grid equator' : 'map-body-grid')));
+            [-135, -90, -45, 0, 45, 90, 135, 180].forEach(lon => grid.push(bodyGridPath(makeBodyLongitudeLine(lon), cx, cy, radius)));
+
+            const markerRows = locationsOnBody.map(item => ({ item, point: projectBodyLocalPos(item.localPos, cx, cy, radius) }))
+                .sort((a, b) => a.point.depth - b.point.depth);
+            const onyxCount = locationsOnBody.filter(l => String(l.type || '').toLowerCase() === 'onyx').length;
+            const verifiedCount = locationsOnBody.filter(l => {
+                const src = String(l.source || '').toLowerCase();
+                return l.verified === true || src.includes('debug');
+            }).length;
+            const bodyRadiusText = body.radius ? `${(body.radius / 1000).toFixed(1)} km` : 'capture pending';
+            const markerPackTitle = `${body.title} CAPTURED MARKERS`;
+
+            svg.innerHTML = `
+                <defs>
+                    <radialGradient id="euterpeBodyGradient" cx="34%" cy="28%" r="72%">
+                        <stop offset="0%" stop-color="#dbeafe" stop-opacity="0.95"/>
+                        <stop offset="35%" stop-color="#94a3b8" stop-opacity="0.78"/>
+                        <stop offset="78%" stop-color="#263244" stop-opacity="0.98"/>
+                        <stop offset="100%" stop-color="#07111f" stop-opacity="1"/>
+                    </radialGradient>
+                    <radialGradient id="euterpeShadow" cx="68%" cy="52%" r="60%">
+                        <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+                        <stop offset="72%" stop-color="#000" stop-opacity="0.24"/>
+                        <stop offset="100%" stop-color="#000" stop-opacity="0.64"/>
+                    </radialGradient>
+                    <filter id="softGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <rect x="0" y="0" width="1000" height="640" fill="#050505"/>
+                <circle cx="122" cy="92" r="1.2" fill="#777" opacity=".55"/><circle cx="830" cy="110" r="1" fill="#777" opacity=".5"/><circle cx="890" cy="460" r="1.4" fill="#777" opacity=".45"/><circle cx="185" cy="505" r="1" fill="#777" opacity=".38"/>
+                <text x="24" y="42" fill="${accent}" font-family="Courier New" font-size="31" font-weight="900" letter-spacing="2">${body.title} SURFACE VIEW</text>
+                <text x="24" y="64" fill="#aaa" font-family="Courier New" font-size="10" font-weight="700">${body.subtitle.toUpperCase()} • ${body.bodyCode} • ${locationsOnBody.length} SURFACE MARKER${locationsOnBody.length === 1 ? '' : 'S'} • ${onyxCount} ONYX • DRAG GLOBE TO ROTATE</text>
+                <circle class="map-body-outline" cx="${cx}" cy="${cy}" r="${radius}"/>
+                <circle cx="${cx}" cy="${cy}" r="${radius}" fill="url(#euterpeShadow)" opacity="0.78" pointer-events="none"/>
+                ${grid.join('')}
+                <circle class="map-body-limb" cx="${cx}" cy="${cy}" r="${radius}"/>
+                <rect class="map-body-card" x="34" y="470" width="356" height="118" rx="0"/>
+                <text class="map-body-card-title" x="54" y="495">${markerPackTitle}</text>
+                <text class="map-body-card-text" x="54" y="516">Body: ${body.bodyCode}</text>
+                <text class="map-body-card-text" x="54" y="534">Radius: ${bodyRadiusText}</text>
+                <text class="map-body-card-text" x="54" y="552">Loaded: ${locationsOnBody.length} POIs • ${onyxCount} Onyx • ${verifiedCount} verified</text>
+                <text class="map-body-card-text" x="54" y="570">Note: verified debug captures only. No seeded locations.</text>
+                <rect class="map-body-card" x="686" y="92" width="278" height="142" rx="0"/>
+                <text class="map-body-card-title" x="704" y="117">DEBUG GLOBE V1</text>
+                <text class="map-body-card-text" x="704" y="139">Built from real in-game debug coordinates</text>
+                <text class="map-body-card-text" x="704" y="157">Yaw: ${bodyViewRotation.yaw.toFixed(1)}°</text>
+                <text class="map-body-card-text" x="704" y="175">Pitch: ${bodyViewRotation.pitch.toFixed(1)}°</text>
+                <text class="map-body-card-text" x="704" y="193">Back side markers fade until rotated front</text>
+                <text class="map-body-card-text" x="704" y="211">Use “System Map” to return.</text>
+            `;
+
+            markerRows.forEach(({ item, point }) => {
+                const markerSize = Math.max(4, 5.5 + point.depth * 2.2);
+                const labelOnRight = point.x < cx + 120;
+                const lx = point.x + (labelOnRight ? 18 : -18);
+                const ly = point.y - 12;
+                const anchor = labelOnRight ? 'start' : 'end';
+                const local = item.localPos;
+                const latLon = item.lat !== undefined && item.lon !== undefined ? `Lat ${Number(item.lat).toFixed(2)}, Lon ${Number(item.lon).toFixed(2)}` : '';
+                const page = item.cubePage ? `Page ${item.cubePage}` : '';
+                const xyz = `XYZ ${local.x.toFixed(0)}, ${local.y.toFixed(0)}, ${local.z.toFixed(0)}`;
+                const sub = [item.group, latLon, page, item.source || '', xyz].filter(Boolean).join(' • ');
+                const label = item.shortName || item.name;
+                svg.innerHTML += `
+                    <g class="body-map-object" data-kind="body-marker" data-name="${escapeSvg(item.name)}" data-desc="${escapeSvg(sub)}">
+                        <title>${escapeSvg(item.name)} | ${escapeSvg(sub)}</title>
+                        ${point.visible ? `<line class="map-body-callout" x1="${point.x.toFixed(2)}" y1="${point.y.toFixed(2)}" x2="${lx.toFixed(2)}" y2="${ly.toFixed(2)}"/>` : ''}
+                        <circle class="map-body-marker ${point.visible ? '' : 'backside'}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${markerSize.toFixed(2)}"/>
+                        ${point.visible ? `<text class="map-body-label" x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" text-anchor="${anchor}">${escapeSvg(label)}</text><text class="map-body-label-sub" x="${lx.toFixed(2)}" y="${(ly + 13).toFixed(2)}" text-anchor="${anchor}">${escapeSvg(item.group)}</text>` : ''}
+                    </g>
+                `;
+            });
+
+            attachMapHoverHandlers();
+            updateMapSearchResults();
+            const info = document.getElementById('mapHoverInfo');
+            if (info) info.textContent = `${body.title} globe • ${locationsOnBody.length} verified surface marker${locationsOnBody.length === 1 ? '' : 's'} • ${onyxCount} Onyx • drag the globe to rotate • use System Map to go back.`;
+        }
 
 
         function classifyLocation(nameOrLoc) {
@@ -1696,6 +2132,11 @@
         }
 
         function drawSystemMap(routePath = []) {
+            if (bodyViewMode) {
+                drawBodyView(false);
+                return;
+            }
+            syncBodyViewControls();
             const svg = getDOM('systemMap');
             if (!svg) return;
             initMapInteractions();
@@ -1827,7 +2268,7 @@
                 const leaderStroke = isSearchSelected ? sysColor : isRoute ? '#4ade80' : major ? sysColor : '#d8d8d8';
 
                 svg.innerHTML += `
-                   <g class="map-object ${cls === 'gateway' ? 'gateway-link' : ''}" data-name="${escapeSvg(loc.name)}" data-lon="${loc.lon}" data-dist="${loc.dist}" data-lat="${loc.lat}" data-desc="${escapeSvg(describeLocationForUi(loc))}" ondblclick="handleMapDoubleClick(this.dataset.name); event.preventDefault(); event.stopPropagation();">
+                   <g class="map-object ${cls === 'gateway' ? 'gateway-link' : ''}" data-name="${escapeSvg(loc.name)}" data-bodyview="${resolveBodyViewName(loc.name) ? 'true' : 'false'}" data-lon="${loc.lon}" data-dist="${loc.dist}" data-lat="${loc.lat}" data-desc="${escapeSvg(describeLocationForUi(loc))}" ondblclick="handleMapDoubleClick(this.dataset.name); event.preventDefault(); event.stopPropagation();">
                         <title>${escapeSvg(loc.name)} | ${escapeSvg(describeLocationForUi(loc))}</title>
                         ${cls === 'surface' && getParentBodyLocation(loc) ? (() => { const pp = mapPoint(getParentBodyLocation(loc), cx, cy, scale); return `<line class="map-surface-link" x1="${pp.x.toFixed(2)}" y1="${pp.y.toFixed(2)}" x2="${pt.x.toFixed(2)}" y2="${pt.y.toFixed(2)}" style="stroke: ${sysColor}"></line>`; })() : ''}
                         ${cls === 'moon' && pt.exactX !== undefined ? `<line class="map-moon-link" x1="${pt.exactX.toFixed(2)}" y1="${pt.exactY.toFixed(2)}" x2="${pt.x.toFixed(2)}" y2="${pt.y.toFixed(2)}"></line>` : ''}
@@ -1866,7 +2307,10 @@
             lastMapDoubleClickName = name;
             lastMapDoubleClickAt = now;
 
-            if (name.includes("Gateway")) {
+            const bodyName = resolveBodyViewName(name);
+            if (!bodyViewMode && bodyName) {
+                enterBodyView(bodyName);
+            } else if (name.includes("Gateway")) {
                 jumpGateway(name);
             } else {
                 centerToLocation(name);
@@ -1880,18 +2324,21 @@
             mapHoverHandlersReady = true;
 
             svg.addEventListener('dblclick', (e) => {
-                const mapObject = e.target.closest('.map-object');
+                const mapObject = e.target.closest('.map-object, .body-map-object');
                 if (!mapObject) return;
                 e.preventDefault();
                 e.stopPropagation();
+                if (mapObject.dataset.kind === 'body-marker') return;
                 handleMapDoubleClick(mapObject.dataset.name);
             });
 
             svg.addEventListener('mousemove', (e) => {
-                const mapObject = e.target.closest('.map-object');
+                const mapObject = e.target.closest('.map-object, .body-map-object');
                 if (mapObject) {
                     let txt = `${mapObject.dataset.name} | ${mapObject.dataset.desc || `lat ${mapObject.dataset.lat}° | lon ${mapObject.dataset.lon}° | dist ${mapObject.dataset.dist} GM`}`;
-                    txt += mapObject.dataset.name.includes("Gateway") ? " • Double-click to jump" : " • Double-click to center";
+                    if (mapObject.dataset.kind === 'body-marker') txt += ' • captured surface coordinate';
+                    else if (mapObject.dataset.bodyview === 'true') txt += ' • Double-click to inspect surface';
+                    else txt += mapObject.dataset.name.includes("Gateway") ? " • Double-click to jump" : " • Double-click to center";
                     info.textContent = txt;
                 }
             });
